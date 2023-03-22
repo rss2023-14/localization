@@ -17,15 +17,13 @@ class SensorModel:
         self.num_beams_per_particle = rospy.get_param("~num_beams_per_particle")
         self.scan_theta_discretization = rospy.get_param("~scan_theta_discretization")
         self.scan_field_of_view = rospy.get_param("~scan_field_of_view")
+        self.lidar_scale_to_map_scale = rospy.get_param("~lidar_scale_to_map_scale")
 
-        ####################################
-        # TODO
-        # Adjust these parameters
-        self.alpha_hit = 0
-        self.alpha_short = 0
-        self.alpha_max = 0
-        self.alpha_rand = 0
-        self.sigma_hit = 0
+        self.alpha_hit = 0.74
+        self.alpha_short = 0.07
+        self.alpha_max = 0.07
+        self.alpha_rand = 0.12
+        self.sigma_hit = 8.0
 
         # Your sensor table will be a `table_width` x `table_width` np array:
         self.table_width = 201
@@ -98,21 +96,63 @@ class SensorModel:
             return
 
         ####################################
-        # TODO
-        # Evaluate the sensor model here!
-        #
         # You will probably want to use this function
         # to perform ray tracing from all the particles.
-        # This produces a matrix of size N x num_beams_per_particle 
+        # This produces a matrix of size N x num_beams_per_particle
 
+        # Find raycast 'ground truth'
         scans = self.scan_sim.scan(particles)
 
+        # Downsample actual LIDAR observations
+        num_obs = len(observation)
+        obs_downsampled = np.zeros(self.num_beams_per_particle)
+        assert num_obs > self.num_beams_per_particle, "Can't downsample LIDAR data, more ray-traced beams than actual LIDAR beams!"
+
+        for i in range(self.num_beams_per_particle):
+            j = i*int(float(num_obs)/self.num_beams_per_particle - 0.5) # Round down
+            obs_downsampled[i] = observation[j]
+
+        # Convert distance -> pixels
+        conversion_d_px = 1.0/(self.map_resolution*self.lidar_scale_to_map_scale)
+        obs_downsampled *= conversion_d_px
+        scans = np.matrix(scans) *= conversion_d_px
+
+        # Assign probability to each particle
+        probabilities_per_scan = np.zeros(len)
+        probabilities = np.zeros(len(particles))
+        for i in range(len(particles)):
+            particle_scans = scans[i]
+
+            for j in range(num_obs):
+                x = particle_scans[j] # Ground truth
+                z = obs_downsampled[j] # Observation
+
+                # Clip px (x)
+                if x < 0:
+                    x = 0
+                elif x > self.table_width-1:
+                    x = self.table_width-1
+                # Clip px (z)
+                if z < 0:
+                    z = 0
+                elif z > self.table_width-1:
+                    z = self.table_width-1
+
+                # Lookup probability
+                p = self.sensor_model_table[int(z)][int(x)]
+                probabilities_per_scan[i][j] = p
+
+            # Average probabilities
+            probabilities[i] = np.mean(probabilities_per_scan[i])
+
+        return probabilities
         ####################################
 
     def map_callback(self, map_msg):
         # Convert the map to a numpy array
         self.map = np.array(map_msg.data, np.double)/100.
         self.map = np.clip(self.map, 0, 1)
+        self.map_resolution = map_msg.info.resolution
 
         # Convert the origin to a tuple
         origin_p = map_msg.info.origin.position
