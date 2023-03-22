@@ -27,7 +27,8 @@ class MotionModel:
                 same size
         """
         for particle in particles:
-            particle = apply_odometry(noisy_odometry(odometry), particle)
+            particle = self.apply_odometry(
+                self.noisy_odometry(odometry), particle)
 
         return particles
 
