@@ -1,4 +1,5 @@
 import numpy as np
+import math
 from localization.scan_simulator_2d import PyScanSimulator2D
 # Try to change to just `from scan_simulator_2d import PyScanSimulator2D` 
 # if any error re: scan_simulator_2d occurs
@@ -17,15 +18,13 @@ class SensorModel:
         self.num_beams_per_particle = rospy.get_param("~num_beams_per_particle")
         self.scan_theta_discretization = rospy.get_param("~scan_theta_discretization")
         self.scan_field_of_view = rospy.get_param("~scan_field_of_view")
+        self.lidar_scale_to_map_scale = rospy.get_param("~lidar_scale_to_map_scale")
 
-        ####################################
-        # TODO
-        # Adjust these parameters
-        self.alpha_hit = 0
-        self.alpha_short = 0
-        self.alpha_max = 0
-        self.alpha_rand = 0
-        self.sigma_hit = 0
+        self.alpha_hit = 0.74
+        self.alpha_short = 0.07
+        self.alpha_max = 0.07
+        self.alpha_rand = 0.12
+        self.sigma_hit = 8.0
 
         # Your sensor table will be a `table_width` x `table_width` np array:
         self.table_width = 201
@@ -71,7 +70,55 @@ class SensorModel:
         returns:
             No return type. Directly modify `self.sensor_model_table`.
         """
-        raise NotImplementedError
+        # downselect 1000 scans to 100
+        # find probablity of scan based on map and ground truth
+        # average probably for 100 scans (for each particle) to find probability of particle
+        # put those in lookup table
+
+        def p_short(z_k, d):
+            if (z_k >= 0) and (d >= z_k) and (d != 0):
+                return (2/d) * (1 - (z_k/d))
+            return 0
+            
+        def p_max(z_k, z_max):
+            if (z_max == z_k):
+                return 1
+            return 0
+
+        def p_rand(z_k, z_max):
+            if (z_max >= z_k) and (0 <= z_k):
+                return 1/z_max
+            return 0
+        
+        ##
+
+        def p_hit(z_k, d, sigma, z_max = self.table_width):
+            if (z_k <= z_max) and (0 <= z_k):
+                return 1/math.sqrt(2*math.pi*(sigma**2))*math.exp(-1*((z_k-d)**2)/(2*(sigma**2)))
+            return 0
+
+        p_hit_table = np.empty((self.table_width, self.table_width)) # initalize table
+        for z_k in range(201):
+            for d in range(201):
+                p_hit_table[z_k, d] = p_hit(z_k, d, self.sigma_hit)
+        p_hit_table = p_hit_table/p_hit_table.sum(axis = 0, keepdims = 1) # normalize p_hit
+
+        def p_zk(z_k, d, z_max = self.table_width):
+            # return (self.alpha_hit * p_hit(z_k, z_max, d, self.sigma_hit) 
+            return (self.alpha_hit * p_hit_table[z_k, d] # find p_hit from normalized table
+                    + self.alpha_short * p_short(z_k, d) 
+                    + self.alpha_max * p_max(z_k, z_max) 
+                    + self.alpha_rand * p_rand(z_k, z_max))
+
+        table = np.empty((self.table_width, self.table_width)) # initalize table
+        for z_k in range(201): # iterative over every space in grid
+            for d in range(201):
+                table[z_k, d] = p_zk(z_k, d) # put p_zk valie in each spot in table
+        table = table/table.sum(axis = 0, keepdims = 1) # normalize final table
+        self.sensor_model_table = table
+        
+
+
 
     def evaluate(self, particles, observation):
         """
@@ -98,21 +145,63 @@ class SensorModel:
             return
 
         ####################################
-        # TODO
-        # Evaluate the sensor model here!
-        #
         # You will probably want to use this function
         # to perform ray tracing from all the particles.
-        # This produces a matrix of size N x num_beams_per_particle 
+        # This produces a matrix of size N x num_beams_per_particle
 
+        # Find raycast 'ground truth'
         scans = self.scan_sim.scan(particles)
 
+        # Downsample actual LIDAR observations
+        num_obs = len(observation)
+        obs_downsampled = np.zeros(self.num_beams_per_particle)
+        assert num_obs > self.num_beams_per_particle, "Can't downsample LIDAR data, more ray-traced beams than actual LIDAR beams!"
+
+        for i in range(self.num_beams_per_particle):
+            j = i*int(float(num_obs)/self.num_beams_per_particle - 0.5) # Round down
+            obs_downsampled[i] = observation[j]
+
+        # Convert distance -> pixels
+        conversion_d_px = 1.0/(self.map_resolution*self.lidar_scale_to_map_scale)
+        obs_downsampled *= conversion_d_px
+        scans = np.matrix(scans) *= conversion_d_px
+
+        # Assign probability to each particle
+        probabilities_per_scan = np.zeros(len)
+        probabilities = np.zeros(len(particles))
+        for i in range(len(particles)):
+            particle_scans = scans[i]
+
+            for j in range(num_obs):
+                x = particle_scans[j] # Ground truth
+                z = obs_downsampled[j] # Observation
+
+                # Clip px (x)
+                if x < 0:
+                    x = 0
+                elif x > self.table_width-1:
+                    x = self.table_width-1
+                # Clip px (z)
+                if z < 0:
+                    z = 0
+                elif z > self.table_width-1:
+                    z = self.table_width-1
+
+                # Lookup probability
+                p = self.sensor_model_table[int(z)][int(x)]
+                probabilities_per_scan[i][j] = p
+
+            # Average probabilities
+            probabilities[i] = np.mean(probabilities_per_scan[i])
+
+        return probabilities
         ####################################
 
     def map_callback(self, map_msg):
         # Convert the map to a numpy array
         self.map = np.array(map_msg.data, np.double)/100.
         self.map = np.clip(self.map, 0, 1)
+        self.map_resolution = map_msg.info.resolution
 
         # Convert the origin to a tuple
         origin_p = map_msg.info.origin.position
