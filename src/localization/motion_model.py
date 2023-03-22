@@ -32,9 +32,9 @@ class MotionModel:
 
 
 def noisy_odometry(odometry):
-    dx = odometry[0] + random.gauss(sigma=0.5)
-    dy = odometry[1] + random.gauss(sigma=0.5)
-    dtheta = odometry[2] + random.gauss(sigma=0.5)
+    dx = odometry[0] + random.gauss(mu=0.0, sigma=0.5)
+    dy = odometry[1] + random.gauss(mu=0.0, sigma=0.5)
+    dtheta = odometry[2] + random.gauss(mu=0.0, sigma=0.5)
 
     return [dx, dy, dtheta]
 
