@@ -1,15 +1,11 @@
+import random
+import numpy as np
+
+
 class MotionModel:
 
     def __init__(self):
-
-        ####################################
-        # TODO
-        # Do any precomputation for the motion
-        # model here.
-
         pass
-
-        ####################################
 
     def evaluate(self, particles, odometry):
         """
@@ -18,7 +14,7 @@ class MotionModel:
 
         args:
             particles: An Nx3 matrix of the form:
-            
+
                 [x0 y0 theta0]
                 [x1 y0 theta1]
                 [    ...     ]
@@ -29,10 +25,29 @@ class MotionModel:
             particles: An updated matrix of the
                 same size
         """
-        
-        ####################################
-        # TODO
+        for particle in particles:
+            noisy_odometry = noisy_odometry(odometry)
+            particle = apply_odometry(noisy_odometry, particle)
 
-        raise NotImplementedError
+        return particles
 
-        ####################################
+
+def noisy_odometry(odometry):
+    dx = odometry[0] + random.gauss(sigma=0.5)
+    dy = odometry[1] + random.gauss(sigma=0.5)
+    dtheta = odometry[2] + random.gauss(sigma=0.5)
+
+    return [dx, dy, dtheta]
+
+
+def apply_odometry(odometry, particle):
+    theta = particle[2]
+    matrix = np.matrix([[np.cos(theta), -np.sin(theta), 0.0],
+                        [np.sin(theta), np.cos(theta), 0.0],
+                        [0.0, 0.0, 1.0]])
+
+    result = np.dot(matrix, odometry) + np.array(particle)
+
+    result = [result[0, 0], result[0, 1], result[0, 2]]
+
+    return result
