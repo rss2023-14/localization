@@ -1,4 +1,5 @@
 import numpy as np
+import math
 from localization.scan_simulator_2d import PyScanSimulator2D
 # Try to change to just `from scan_simulator_2d import PyScanSimulator2D` 
 # if any error re: scan_simulator_2d occurs
@@ -71,7 +72,55 @@ class SensorModel:
         returns:
             No return type. Directly modify `self.sensor_model_table`.
         """
-        raise NotImplementedError
+        # downselect 1000 scans to 100
+        # find probablity of scan based on map and ground truth
+        # average probably for 100 scans (for each particle) to find probability of particle
+        # put those in lookup table
+
+        def p_short(z_k, d):
+            if (z_k >= 0) and (d >= z_k) and (d != 0):
+                return (2/d) * (1 - (z_k/d))
+            return 0
+            
+        def p_max(z_k, z_max):
+            if (z_max == z_k):
+                return 1
+            return 0
+
+        def p_rand(z_k, z_max):
+            if (z_max >= z_k) and (0 <= z_k):
+                return 1/z_max
+            return 0
+        
+        ##
+
+        def p_hit(z_k, d, sigma, z_max = self.table_width):
+            if (z_k <= z_max) and (0 <= z_k):
+                return 1/math.sqrt(2*math.pi*(sigma**2))*math.exp(-1*((z_k-d)**2)/(2*(sigma**2)))
+            return 0
+
+        p_hit_table = np.empty((self.table_width, self.table_width)) # initalize table
+        for z_k in range(201):
+            for d in range(201):
+                p_hit_table[z_k, d] = p_hit(z_k, d, self.sigma_hit)
+        p_hit_table = p_hit_table/p_hit_table.sum(axis = 0, keepdims = 1) # normalize p_hit
+
+        def p_zk(z_k, d, z_max = self.table_width):
+            # return (self.alpha_hit * p_hit(z_k, z_max, d, self.sigma_hit) 
+            return (self.alpha_hit * p_hit_table[z_k, d] # find p_hit from normalized table
+                    + self.alpha_short * p_short(z_k, d) 
+                    + self.alpha_max * p_max(z_k, z_max) 
+                    + self.alpha_rand * p_rand(z_k, z_max))
+
+        table = np.empty((self.table_width, self.table_width)) # initalize table
+        for z_k in range(201): # iterative over every space in grid
+            for d in range(201):
+                table[z_k, d] = p_zk(z_k, d) # put p_zk valie in each spot in table
+        table = table/table.sum(axis = 0, keepdims = 1) # normalize final table
+        self.sensor_model_table = table
+        
+
+
 
     def evaluate(self, particles, observation):
         """
