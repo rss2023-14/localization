@@ -28,11 +28,12 @@ class MotionModel:
             particles: An updated matrix of the
                 same size
         """
+        result = []
         for particle in particles:
-            particle = self.apply_odometry(
-                self.noisy_odometry(odometry), particle)
+            result.append(self.apply_odometry(
+                self.noisy_odometry(odometry), particle))
 
-        return particles
+        return result
 
     def noisy_odometry(self, odometry):
         if self.is_deterministic:

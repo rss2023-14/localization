@@ -23,16 +23,16 @@ for path in ros_package_paths.split(":"):
     library_dirs.append(library_dir2)
 
 extensions = [
-        Extension(
-            "scan_simulator_2d",
-            ["scan_simulator_2d.pyx"],
-            libraries=["racecar_simulator"],
-            include_dirs=include_dirs,
-            library_dirs=library_dirs,
-            language='c++',
-            extra_compile_args=["-std=c++11", "-O2", "-O3"],
-            extra_link_args=["-std=c++11"]
-            )]
+    Extension(
+        "scan_simulator_2d",
+        ["scan_simulator_2d.pyx"],
+        libraries=["racecar_simulator"],
+        include_dirs=include_dirs,
+        library_dirs=library_dirs,
+        language='c++',
+        extra_compile_args=["-std=c++11", "-O2", "-O3"],
+        extra_link_args=["-std=c++11"]
+    )]
 
 setup(
     ext_modules=cythonize(extensions)

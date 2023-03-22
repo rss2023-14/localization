@@ -11,10 +11,11 @@ from localization.sensor_model import SensorModel
 from __init__ import TEST_MAP_ARRAY, TEST_PRECOMPUTED_TABLE, TEST_PARTICLES_2, \
     TEST_SENSOR_MODEL_INPUT_SCANS, TEST_SENSOR_MODEL_OUTPUT_PROBABILITIES
 
+
 class TestSensorModel(unittest.TestCase):
     def setUp(self):
         self.sensor_model = SensorModel()
-        
+
         map_topic = rospy.get_param("~map_topic")
         map_msg = rospy.wait_for_message(map_topic, OccupancyGrid)
         self.sensor_model.map_callback(map_msg)
@@ -40,9 +41,10 @@ class TestSensorModel(unittest.TestCase):
         np.testing.assert_allclose(expected_table, actual_table, rtol=self.tol)
 
     def test_evaluate(self):
-        expected_probabilities = np.array(TEST_SENSOR_MODEL_OUTPUT_PROBABILITIES)
+        expected_probabilities = np.array(
+            TEST_SENSOR_MODEL_OUTPUT_PROBABILITIES)
         actual_probabilities = self.sensor_model.evaluate(
-                np.array(TEST_PARTICLES_2), np.array(TEST_SENSOR_MODEL_INPUT_SCANS))
+            np.array(TEST_PARTICLES_2), np.array(TEST_SENSOR_MODEL_INPUT_SCANS))
 
         np.testing.assert_allclose(expected_probabilities,
                                    actual_probabilities,
