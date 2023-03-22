@@ -13,7 +13,7 @@ class ParticleFilter:
 
     def __init__(self):
         # how many particles we're using
-        self.num_particles = 200
+        self.num_particles = rospy.get_param("~num_particles")
 
         # our particles list
         self.particles = []
