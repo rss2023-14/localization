@@ -1,7 +1,9 @@
+#!/usr/bin/env python2
+
 import numpy as np
 import math
 from scan_simulator_2d import PyScanSimulator2D
-# Try to change to just `from scan_simulator_2d import PyScanSimulator2D` 
+# Try to change to just `from scan_simulator_2d import PyScanSimulator2D`
 # if any error re: scan_simulator_2d occurs
 
 import rospy
@@ -9,16 +11,19 @@ import tf
 from nav_msgs.msg import OccupancyGrid
 from tf.transformations import quaternion_from_euler
 
-class SensorModel:
 
+class SensorModel:
 
     def __init__(self):
         # Fetch parameters
         self.map_topic = rospy.get_param("~map_topic")
-        self.num_beams_per_particle = rospy.get_param("~num_beams_per_particle")
-        self.scan_theta_discretization = rospy.get_param("~scan_theta_discretization")
+        self.num_beams_per_particle = rospy.get_param(
+            "~num_beams_per_particle")
+        self.scan_theta_discretization = rospy.get_param(
+            "~scan_theta_discretization")
         self.scan_field_of_view = rospy.get_param("~scan_field_of_view")
-        self.lidar_scale_to_map_scale = rospy.get_param("~lidar_scale_to_map_scale")
+        self.lidar_scale_to_map_scale = rospy.get_param(
+            "~lidar_scale_to_map_scale")
 
         self.alpha_hit = 0.74
         self.alpha_short = 0.07
@@ -36,25 +41,25 @@ class SensorModel:
 
         # Create a simulated laser scan
         self.scan_sim = PyScanSimulator2D(
-                self.num_beams_per_particle,
-                self.scan_field_of_view,
-                0, # This is not the simulator, don't add noise
-                0.01, # This is used as an epsilon
-                self.scan_theta_discretization) 
+            self.num_beams_per_particle,
+            self.scan_field_of_view,
+            0,  # This is not the simulator, don't add noise
+            0.01,  # This is used as an epsilon
+            self.scan_theta_discretization)
 
         # Subscribe to the map
         self.map = None
         self.map_set = False
         rospy.Subscriber(
-                self.map_topic,
-                OccupancyGrid,
-                self.map_callback,
-                queue_size=1)
+            self.map_topic,
+            OccupancyGrid,
+            self.map_callback,
+            queue_size=1)
 
     def precompute_sensor_model(self):
         """
         Generate and store a table which represents the sensor model.
-        
+
         For each discrete computed range value, this provides the probability of 
         measuring any (discrete) range. This table is indexed by the sensor model
         at runtime by discretizing the measurements and computed ranges from
@@ -66,7 +71,7 @@ class SensorModel:
 
         args:
             N/A
-        
+
         returns:
             No return type. Directly modify `self.sensor_model_table`.
         """
@@ -79,7 +84,7 @@ class SensorModel:
             if (z_k >= 0) and (d >= z_k) and (d != 0):
                 return (2/d) * (1 - (z_k/d))
             return 0
-            
+
         def p_max(z_k, z_max):
             if (z_max == z_k):
                 return 1
@@ -89,37 +94,38 @@ class SensorModel:
             if (z_max >= z_k) and (0 <= z_k):
                 return 1/z_max
             return 0
-        
+
         ##
 
-        def p_hit(z_k, d, sigma, z_max = self.table_width):
+        def p_hit(z_k, d, sigma, z_max=self.table_width):
             if (z_k <= z_max) and (0 <= z_k):
                 return 1/math.sqrt(2*math.pi*(sigma**2))*math.exp(-1*((z_k-d)**2)/(2*(sigma**2)))
             return 0
 
-        p_hit_table = np.empty((self.table_width, self.table_width)) # initalize table
+        p_hit_table = np.empty(
+            (self.table_width, self.table_width))  # initalize table
         for z_k in range(201):
             for d in range(201):
                 p_hit_table[z_k, d] = p_hit(z_k, d, self.sigma_hit)
-        p_hit_table = p_hit_table/p_hit_table.sum(axis = 0, keepdims = 1) # normalize p_hit
+        p_hit_table = p_hit_table / \
+            p_hit_table.sum(axis=0, keepdims=1)  # normalize p_hit
 
-        def p_zk(z_k, d, z_max = self.table_width):
-            # return (self.alpha_hit * p_hit(z_k, z_max, d, self.sigma_hit) 
-            return (self.alpha_hit * p_hit_table[z_k, d] # find p_hit from normalized table
-                    + self.alpha_short * p_short(z_k, d) 
-                    + self.alpha_max * p_max(z_k, z_max) 
+        def p_zk(z_k, d, z_max=self.table_width):
+            # return (self.alpha_hit * p_hit(z_k, z_max, d, self.sigma_hit)
+            return (self.alpha_hit * p_hit_table[z_k, d]  # find p_hit from normalized table
+                    + self.alpha_short * p_short(z_k, d)
+                    + self.alpha_max * p_max(z_k, z_max)
                     + self.alpha_rand * p_rand(z_k, z_max))
 
-        table = np.empty((self.table_width, self.table_width)) # initalize table
-        for z_k in range(201): # iterative over every space in grid
+        table = np.empty((self.table_width, self.table_width)
+                         )  # initalize table
+        for z_k in range(201):  # iterative over every space in grid
             for d in range(201):
-                table[z_k, d] = p_zk(z_k, d) # put p_zk valie in each spot in table
-        table = table/table.sum(axis = 0, keepdims = 1) # normalize final table
+                # put p_zk valie in each spot in table
+                table[z_k, d] = p_zk(z_k, d)
+        table = table/table.sum(axis=0, keepdims=1)  # normalize final table
         self.sensor_model_table = table
         print(self.sensor_model_table)
-        
-
-
 
     def evaluate(self, particles, observation):
         """
@@ -128,7 +134,7 @@ class SensorModel:
 
         args:
             particles: An Nx3 matrix of the form:
-            
+
                 [x0 y0 theta0]
                 [x1 y0 theta1]
                 [    ...     ]
@@ -159,23 +165,26 @@ class SensorModel:
         # assert num_obs > self.num_beams_per_particle, "Can't downsample LIDAR data, more ray-traced beams than actual LIDAR beams!"
 
         for i in range(self.num_beams_per_particle):
-            j = i*int(float(num_obs)/self.num_beams_per_particle - 0.5) # Round down
+            # Round down
+            j = i*int(float(num_obs)/self.num_beams_per_particle - 0.5)
             obs_downsampled[i] = observation[j]
 
         # Convert distance -> pixels
-        conversion_d_px = 1.0/(self.map_resolution*self.lidar_scale_to_map_scale)
+        conversion_d_px = 1.0/(self.map_resolution *
+                               self.lidar_scale_to_map_scale)
         obs_downsampled *= conversion_d_px
         scans = np.matrix(scans) * conversion_d_px
 
         # Assign probability to each particle
-        probabilities_per_scan = np.zeros((len(particles), self.num_beams_per_particle))
+        probabilities_per_scan = np.zeros(
+            (len(particles), self.num_beams_per_particle))
         probabilities = np.zeros(len(particles))
         for i in range(len(particles)):
             particle_scans = scans[i]
 
             for j in range(num_obs):
-                x = particle_scans[j] # Ground truth
-                z = obs_downsampled[j] # Observation
+                x = particle_scans[j]  # Ground truth
+                z = obs_downsampled[j]  # Observation
 
                 # Clip px (x)
                 if x < 0:
@@ -208,20 +217,20 @@ class SensorModel:
         origin_p = map_msg.info.origin.position
         origin_o = map_msg.info.origin.orientation
         origin_o = tf.transformations.euler_from_quaternion((
-                origin_o.x,
-                origin_o.y,
-                origin_o.z,
-                origin_o.w))
+            origin_o.x,
+            origin_o.y,
+            origin_o.z,
+            origin_o.w))
         origin = (origin_p.x, origin_p.y, origin_o[2])
 
         # Initialize a map with the laser scan
         self.scan_sim.set_map(
-                self.map,
-                map_msg.info.height,
-                map_msg.info.width,
-                map_msg.info.resolution,
-                origin,
-                0.5) # Consider anything < 0.5 to be free
+            self.map,
+            map_msg.info.height,
+            map_msg.info.width,
+            map_msg.info.resolution,
+            origin,
+            0.5)  # Consider anything < 0.5 to be free
 
         # Make the map set
         self.map_set = True
