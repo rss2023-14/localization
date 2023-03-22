@@ -18,6 +18,8 @@ class ParticleFilter:
         for _ in range(self.num_particles):
             self.particles.append([0.0, 0.0, 0.0])
 
+        self.pose_estimate = Odometry()
+
         # Get parameters
         self.particle_filter_frame = \
             rospy.get_param("~particle_filter_frame")
@@ -75,7 +77,8 @@ class ParticleFilter:
         # and the particle_filter_frame.
 
     def odometry_callback(self, msg):
-        MotionModel.evaluate(self.particles, msg)
+        MotionModel.evaluate(
+            self.particles, [msg.twist[0], msg.twist[1], msg.twist[5]])
 
     def pose_callback(self, msg):
         pose = [msg.pose[0], msg.pose[1], msg.pose[5]]
@@ -83,6 +86,8 @@ class ParticleFilter:
         self.particles = []
         for _ in range(self.num_particles):
             self.particles.append(pose.copy())
+
+        self.pose_estimate.pose = msg
 
 
 if __name__ == "__main__":
