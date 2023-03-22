@@ -1,6 +1,6 @@
 import numpy as np
 import math
-from localization.scan_simulator_2d import PyScanSimulator2D
+from scan_simulator_2d import PyScanSimulator2D
 # Try to change to just `from scan_simulator_2d import PyScanSimulator2D` 
 # if any error re: scan_simulator_2d occurs
 
@@ -155,7 +155,7 @@ class SensorModel:
         # Downsample actual LIDAR observations
         num_obs = len(observation)
         obs_downsampled = np.zeros(self.num_beams_per_particle)
-        assert num_obs > self.num_beams_per_particle, "Can't downsample LIDAR data, more ray-traced beams than actual LIDAR beams!"
+        # assert num_obs > self.num_beams_per_particle, "Can't downsample LIDAR data, more ray-traced beams than actual LIDAR beams!"
 
         for i in range(self.num_beams_per_particle):
             j = i*int(float(num_obs)/self.num_beams_per_particle - 0.5) # Round down
@@ -164,10 +164,10 @@ class SensorModel:
         # Convert distance -> pixels
         conversion_d_px = 1.0/(self.map_resolution*self.lidar_scale_to_map_scale)
         obs_downsampled *= conversion_d_px
-        scans = np.matrix(scans) *= conversion_d_px
+        scans = np.matrix(scans) * conversion_d_px
 
         # Assign probability to each particle
-        probabilities_per_scan = np.zeros(len)
+        probabilities_per_scan = np.zeros((len(particles), self.num_beams_per_particle))
         probabilities = np.zeros(len(particles))
         for i in range(len(particles)):
             particle_scans = scans[i]
@@ -192,7 +192,7 @@ class SensorModel:
                 probabilities_per_scan[i][j] = p
 
             # Average probabilities
-            probabilities[i] = np.mean(probabilities_per_scan[i])
+            probabilities[i] = np.mean(probabilities_per_scan[i])**(1.0/2.2)
 
         return probabilities
         ####################################
