@@ -12,12 +12,15 @@ from geometry_msgs.msg import PoseWithCovarianceStamped
 class ParticleFilter:
 
     def __init__(self):
-
+        # how many particles we're using
         self.num_particles = 200
+
+        # our particles list
         self.particles = []
         for _ in range(self.num_particles):
             self.particles.append([0.0, 0.0, 0.0])
 
+        # average pose of our particles in Odometry.pose
         self.pose_estimate = Odometry()
 
         # Get parameters
@@ -41,7 +44,7 @@ class ParticleFilter:
                                           YOUR_LIDAR_CALLBACK,  # TODO: Fill this in
                                           queue_size=1)
         self.odom_sub = rospy.Subscriber(odom_topic, Odometry,
-                                         YOUR_ODOM_CALLBACK,  # TODO: Fill this in
+                                         self.odometry_callback,  # TODO: Fill this in
                                          queue_size=1)
 
         #  *Important Note #2:* You must respond to pose
@@ -50,7 +53,7 @@ class ParticleFilter:
         #     "Pose Estimate" feature in RViz, which publishes to
         #     /initialpose.
         self.pose_sub = rospy.Subscriber("/initialpose", PoseWithCovarianceStamped,
-                                         self.pose_callback(),  # TODO: Fill this in
+                                         self.pose_callback,  # TODO: Fill this in
                                          queue_size=1)
 
         #  *Important Note #3:* You must publish your pose estimate to
@@ -75,6 +78,10 @@ class ParticleFilter:
         #
         # Publish a transformation frame between the map
         # and the particle_filter_frame.
+
+    # TODO
+    def lidar_callback(self, msg):
+        pass
 
     def odometry_callback(self, msg):
         MotionModel.evaluate(
