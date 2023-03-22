@@ -1,6 +1,6 @@
 import numpy as np
 import math
-from localization.scan_simulator_2d import PyScanSimulator2D
+from scan_simulator_2d import PyScanSimulator2D
 # Try to change to just `from scan_simulator_2d import PyScanSimulator2D` 
 # if any error re: scan_simulator_2d occurs
 
@@ -116,6 +116,7 @@ class SensorModel:
                 table[z_k, d] = p_zk(z_k, d) # put p_zk valie in each spot in table
         table = table/table.sum(axis = 0, keepdims = 1) # normalize final table
         self.sensor_model_table = table
+        print(self.sensor_model_table)
         
 
 
@@ -164,7 +165,7 @@ class SensorModel:
         # Convert distance -> pixels
         conversion_d_px = 1.0/(self.map_resolution*self.lidar_scale_to_map_scale)
         obs_downsampled *= conversion_d_px
-        scans = np.matrix(scans) *= conversion_d_px
+        scans = np.matrix(scans) * conversion_d_px
 
         # Assign probability to each particle
         probabilities_per_scan = np.zeros(len)
