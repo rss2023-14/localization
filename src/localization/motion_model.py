@@ -42,8 +42,11 @@ def noisy_odometry(odometry):
 
 def apply_odometry(odometry, particle):
     theta = particle[2]
-    matrix = np.matrix([[np.cos(theta), -np.sin(theta), 0.0],
-                        [np.sin(theta), np.cos(theta), 0.0],
+    sin_val = np.sin(theta)
+    cos_val = np.cos(theta)
+
+    matrix = np.matrix([[cos_val, -sin_val, 0.0],
+                        [sin_val, cos_val, 0.0],
                         [0.0, 0.0, 1.0]])
 
     result = np.dot(matrix, odometry) + np.array(particle)
