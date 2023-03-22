@@ -116,6 +116,7 @@ class SensorModel:
                 table[z_k, d] = p_zk(z_k, d) # put p_zk valie in each spot in table
         table = table/table.sum(axis = 0, keepdims = 1) # normalize final table
         self.sensor_model_table = table
+        print(self.sensor_model_table)
         
 
 

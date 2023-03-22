@@ -41,7 +41,7 @@ class ParticleFilter:
         odom_topic = rospy.get_param("~odom_topic", "/odom")
 
         self.laser_sub = rospy.Subscriber(scan_topic, LaserScan,
-                                          YOUR_LIDAR_CALLBACK,  # TODO: Fill this in
+                                          self.lidar_callback,  # TODO: Fill this in
                                           queue_size=1)
         self.odom_sub = rospy.Subscriber(odom_topic, Odometry,
                                          self.odometry_callback,  # TODO: Fill this in
@@ -80,12 +80,20 @@ class ParticleFilter:
         # and the particle_filter_frame.
 
     # TODO
+
+    def average_pose(self):
+        # take self.particles and find the average pose, return an Odometry message with the pose
+        pass
+
+    # TODO
     def lidar_callback(self, msg):
         pass
 
     def odometry_callback(self, msg):
         MotionModel.evaluate(
             self.particles, [msg.twist[0], msg.twist[1], msg.twist[5]])
+
+        self.pose_estimate = self.average_pose()
 
     def pose_callback(self, msg):
         pose = [msg.pose[0], msg.pose[1], msg.pose[5]]
