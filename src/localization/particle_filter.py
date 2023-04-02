@@ -97,13 +97,14 @@ class ParticleFilter:
 
     def odometry_callback(self, msg):
         MotionModel.evaluate(
-            self.particles, [msg.twist[0], msg.twist[1], msg.twist[5]])
+            self.particles, [msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.angular.z])
 
         self.pose_estimate = self.average_pose()
 
     def pose_callback(self, msg):
         pose = msg.pose.pose
-        theta = euler_from_quaternion([pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w])[2]
+        theta = euler_from_quaternion(
+            [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w])[2]
         self.particles = np.array([[pose.position.x, pose.position.y, theta]
                                    for _ in range(self.num_particles)])
 
