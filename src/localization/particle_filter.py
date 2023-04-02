@@ -104,16 +104,15 @@ class ParticleFilter:
         result.pose.pose.orientation.z = quat[2]
         result.pose.pose.orientation.w = quat[3]
 
-        rospy.loginfo(self.particles)
-
         self.odom_pub.publish(result)
         return result
 
     def lidar_callback(self, msg):
         """
-        Resample and duplicate half of the particles according to sensor model probabilities.
+        Resample and duplicate 1/f of the particles according to sensor model probabilities.
         """
-        n = np.rint(self.num_particles/2).astype(int)
+        f = 10
+        n = np.rint(self.num_particles/f).astype(int)
         p = self.sensor_model.evaluate(self.particles, msg.ranges)
         if p is None:
             return  # Map is not set!
@@ -124,7 +123,7 @@ class ParticleFilter:
             indices, size=n, replace=False, p=p)
 
         resampled = self.particles[resampled_indices]
-        self.particles = np.repeat(resampled, 2, axis=0)
+        self.particles = np.repeat(resampled, f, axis=0)
 
         self.pose_estimate = self.average_pose()
 

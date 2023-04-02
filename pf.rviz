@@ -6,6 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /Odometry1
       Splitter Ratio: 0.5
     Tree Height: 549
   - Class: rviz/Selection
@@ -70,7 +71,7 @@ Visualization Manager:
           Value: true
         Value: true
       Enabled: true
-      Keep: 100
+      Keep: 5
       Name: Odometry
       Position Tolerance: 0.10000000149011612
       Shape:
@@ -243,4 +244,4 @@ Window Geometry:
     collapsed: false
   Width: 1267
   X: 55
-  Y: 69
+  Y: 39
