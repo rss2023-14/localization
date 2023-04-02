@@ -96,7 +96,11 @@ class ParticleFilter:
 
         result.pose.pose.position.x = x
         result.pose.pose.position.y = y
-        result.pose.pose.orientation = quaternion_from_euler(0.0, 0.0, theta)
+        quat = quaternion_from_euler(0.0, 0.0, theta)
+        result.pose.pose.orientation.x = quat[0]
+        result.pose.pose.orientation.y = quat[1]
+        result.pose.pose.orientation.z = quat[2]
+        result.pose.pose.orientation.w = quat[3]
 
         self.odom_pub.publish(result)
         return result
