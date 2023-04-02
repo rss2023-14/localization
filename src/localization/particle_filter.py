@@ -132,11 +132,16 @@ class ParticleFilter:
         time = rospy.Time.now()
         dt = (time - self.prev_time).to_sec()
 
-        self.particles = self.motion_model.evaluate(
+        """ self.particles = self.motion_model.evaluate(
             self.particles, [(msg.twist.twist.linear.x * dt) + random.gauss(mu=0.0, sigma=0.1),
                              (msg.twist.twist.linear.y * dt) +
                              random.gauss(mu=0.0, sigma=0.1),
-                             (msg.twist.twist.angular.z * dt) + random.gauss(mu=0.0, sigma=0.08)])
+                             (msg.twist.twist.angular.z * dt) + random.gauss(mu=0.0, sigma=0.08)]) """
+
+        self.particles = self.motion_model.evaluate(
+            self.particles, [(msg.twist.twist.linear.x * dt),
+                             (msg.twist.twist.linear.y * dt),
+                             (msg.twist.twist.angular.z * dt)])
 
         self.pose_estimate = self.average_pose()
         self.prev_time = time
