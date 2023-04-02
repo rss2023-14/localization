@@ -101,7 +101,14 @@ class ParticleFilter:
         return result
 
     def lidar_callback(self, msg):
-        pass
+        """
+        Resample and duplicate half of the particles according to sensor model probabilities.
+        """
+        n = np.rint(self.num_particles/2).astype(int)
+        p = SensorModel.evaluate(self.particles, msg.ranges)
+        resampled = np.random.choice(self.particles, size=n, replace=False, p=p)
+
+        self.particles = np.repeat(resampled, 2, axis=0)
 
     def odometry_callback(self, msg):
         MotionModel.evaluate(
