@@ -3,6 +3,7 @@
 import rospy
 from sensor_model import SensorModel
 from motion_model import MotionModel
+from scipy.stats import circmean
 
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry
@@ -16,9 +17,7 @@ class ParticleFilter:
         self.num_particles = rospy.get_param("~num_particles")
 
         # our particles list
-        self.particles = []
-        for _ in range(self.num_particles):
-            self.particles.append([0.0, 0.0, 0.0])
+        self.particles = [[0.0, 0.0, 0.0] for _ in range(self.num_particles)]
 
         # average pose of our particles in Odometry.pose
         self.pose_estimate = Odometry()
@@ -96,11 +95,8 @@ class ParticleFilter:
         self.pose_estimate = self.average_pose()
 
     def pose_callback(self, msg):
-        pose = [msg.pose[0], msg.pose[1], msg.pose[5]]
-
-        self.particles = []
-        for _ in range(self.num_particles):
-            self.particles.append(pose.copy())
+        self.particles = [[msg.pose[0], msg.pose[1], msg.pose[5]]
+                          for _ in range(self.num_particles)]
 
         self.pose_estimate.pose = msg
 

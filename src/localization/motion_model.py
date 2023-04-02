@@ -28,11 +28,13 @@ class MotionModel:
             particles: An updated matrix of the
                 same size
         """
+
         result = []
         for particle in particles:
             result.append(self.apply_odometry(
                 self.noisy_odometry(odometry), particle))
-
+        """ result = np.apply_along_axis(
+            self.apply_odometry, 1, particles, odometry) """
         return result
 
     def noisy_odometry(self, odometry):
