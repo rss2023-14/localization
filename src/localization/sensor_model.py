@@ -158,18 +158,18 @@ class SensorModel:
         # Find raycast 'ground truth'
         scans = self.scan_sim.scan(particles)
 
-        # Downsample actual LIDAR observations
-        num_obs = len(observation)
-        obs_downsampled = np.zeros(self.num_beams_per_particle)
-        assert num_obs >= self.num_beams_per_particle, "Can't downsample LIDAR data, more ray-traced beams than actual LIDAR beams!"
-
-        for i in range(self.num_beams_per_particle):
-            j = i*int(float(num_obs)/self.num_beams_per_particle)
-            obs_downsampled[i] = observation[j]
+        # Downsample, if necessary
+        if len(observation) > self.num_beams_per_particle:
+            assert len(observation) >= self.num_beams_per_particle, "Can't downsample LIDAR data, more ray-traced beams than actual LIDAR beams!"
+            obs_downsampled = np.zeros(self.num_beams_per_particle)
+            for i in range(self.num_beams_per_particle):
+                j = int(np.linspace(0, num_obs-1, self.num_beams_per_particle)[i])
+                obs_downsampled[i] = observation[j]
+            observation = obs_downsampled
 
         # Convert distance -> pixels
         conversion_d_px = 1.0/(self.map_resolution * self.lidar_scale_to_map_scale)
-        obs_downsampled *= conversion_d_px
+        observation *= conversion_d_px
         scans *= conversion_d_px
 
         def evaluate_particle(particle_scans, lidar_data):
@@ -179,36 +179,26 @@ class SensorModel:
             Assumes
                 - particle_scans and lidar_data are 1D arrays of equal length
                 - both arrays are in px, not m
+                - both arrays are clipped between 0 and self.table_width-1
             """
             n = len(particle_scans)
             probabilities = np.zeros(n)
 
             for i in range(n):
-                z_k = particle_scans[i]
-                d = lidar_data[i]
+                z_k = lidar_data[i]
+                d = particle_scans[i]
+                probabilities[i] = self.sensor_model_table[z_k, d]
 
-                # Clip px (z_k)
-                if z_k < 0:
-                    z_k = 0
-                elif z_k > self.table_width-1:
-                    z_k = self.table_width-1
-
-                # Clip px (d)
-                if d < 0:
-                    d = 0
-                elif d > self.table_width-1:
-                    d = self.table_width-1
-
-                probabilities[i] = self.sensor_model_table[int(z_k), int(d+0.5)]
-                # rospy.loginfo("z_k="+str(z_k)+", d="+str(d)+", p="+str(probabilities[i]))
-            return np.mean(probabilities)**(1.0/2.2)
+            return np.prod(probabilities)**(1.0/2.2)
 
         # Assign probability to each particle
+        scans = np.rint(np.clip(scans, 0, self.table_width-1)).astype(int)
+        observation = np.rint(np.clip(observation, 0, self.table_width-1)).astype(int)
         probabilities = np.zeros(len(particles))
-        for i in range(len(particles)):
-            probabilities[i] = evaluate_particle(scans[i], obs_downsampled)
 
-        # probabilities /= np.sum(probabilities)
+        for i in range(len(particles)):
+            probabilities[i] = evaluate_particle(scans[i], observation)
+
         return probabilities
         ####################################
 
