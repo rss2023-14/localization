@@ -16,6 +16,8 @@ from geometry_msgs.msg import PoseWithCovarianceStamped
 class ParticleFilter:
 
     def __init__(self):
+        self.prev_time = rospy.Time.now()
+
         # how many particles we're using
         self.num_particles = rospy.get_param("~num_particles")
 
@@ -114,11 +116,12 @@ class ParticleFilter:
         n = np.rint(self.num_particles/2).astype(int)
         p = self.sensor_model.evaluate(self.particles, msg.ranges)
         if p is None:
-            return # Map is not set!
+            return  # Map is not set!
 
         p /= np.sum(p)
-        indices = np.array(range(0,len(self.particles)))
-        resampled_indices = np.random.choice(indices, size=n, replace=False, p=p)
+        indices = np.array(range(0, len(self.particles)))
+        resampled_indices = np.random.choice(
+            indices, size=n, replace=False, p=p)
 
         resampled = self.particles[resampled_indices]
         self.particles = np.repeat(resampled, 2, axis=0)
@@ -126,10 +129,14 @@ class ParticleFilter:
         self.pose_estimate = self.average_pose()
 
     def odometry_callback(self, msg):
+        time = rospy.Time.now()
+        dt = (time - self.prev_time).to_sec()
+
         self.particles = self.motion_model.evaluate(
-            self.particles, [msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.twist.angular.z])
+            self.particles, [msg.twist.twist.linear.x * dt, msg.twist.twist.linear.y * dt, msg.twist.twist.angular.z * dt])
 
         self.pose_estimate = self.average_pose()
+        self.prev_time = time
 
     def pose_callback(self, msg):
         pose = msg.pose.pose
