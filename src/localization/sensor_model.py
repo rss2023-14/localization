@@ -80,52 +80,56 @@ class SensorModel:
         # average probably for 100 scans (for each particle) to find probability of particle
         # put those in lookup table
 
+        def p_hit(z_k, d, sigma, z_max=self.table_width):
+            if (0 <= z_k) and (z_k <= z_max-1):
+                return (1.0/math.sqrt(2.0*math.pi*(sigma**2)))*math.exp(-1.0*((z_k-d)**2)/(2.0*(sigma**2)))
+            return 0
+
         def p_short(z_k, d):
-            if (z_k >= 0) and (d >= z_k) and (d != 0):
-                return (2/d) * (1 - (z_k/d))
+            if (0 <= z_k) and (z_k <= d) and (d != 0):
+                return (2.0/d) * (1.0-(float(z_k)/d))
             return 0
 
         def p_max(z_k, z_max):
-            if (z_max == z_k):
+            if (z_k == z_max-1):
+                # z_max-1 = final pixel
                 return 1
             return 0
 
         def p_rand(z_k, z_max):
-            if (z_max >= z_k) and (0 <= z_k):
-                return 1/z_max
+            if (0 <= z_k) and (z_k <= z_max-1):
+                return 1.0/(z_max-1)
             return 0
 
-        ##
-
-        def p_hit(z_k, d, sigma, z_max=self.table_width):
-            if (z_k <= z_max) and (0 <= z_k):
-                return 1/math.sqrt(2*math.pi*(sigma**2))*math.exp(-1*((z_k-d)**2)/(2*(sigma**2)))
-            return 0
-
-        p_hit_table = np.empty(
-            (self.table_width, self.table_width))  # initalize table
-        for z_k in range(201):
-            for d in range(201):
+        # Construct normalized table for just p_hit
+        p_hit_table = np.empty((self.table_width, self.table_width))  # initalize table
+        for z_k in range(self.table_width):
+            for d in range(self.table_width):
                 p_hit_table[z_k, d] = p_hit(z_k, d, self.sigma_hit)
-        p_hit_table = p_hit_table / \
-            p_hit_table.sum(axis=0, keepdims=1)  # normalize p_hit
+        p_hit_table = p_hit_table / p_hit_table.sum(axis=0, keepdims=1)  # normalize p_hit
+        rospy.loginfo("p_hit sum="+str(np.sum(p_hit_table)))
+
+        #----
 
         def p_zk(z_k, d, z_max=self.table_width):
-            # return (self.alpha_hit * p_hit(z_k, z_max, d, self.sigma_hit)
+            """
+            Use precomputed p_hit_table to return p_zk value for given (z_k, d)
+            """
             return (self.alpha_hit * p_hit_table[z_k, d]  # find p_hit from normalized table
                     + self.alpha_short * p_short(z_k, d)
                     + self.alpha_max * p_max(z_k, z_max)
                     + self.alpha_rand * p_rand(z_k, z_max))
 
-        table = np.empty((self.table_width, self.table_width)
-                         )  # initalize table
-        for z_k in range(201):  # iterative over every space in grid
-            for d in range(201):
-                # put p_zk valie in each spot in table
+        # Use p_hit_table to construct final table
+        table = np.empty((self.table_width, self.table_width))  # initalize table
+        for z_k in range(self.table_width):  # iterative over every space in grid
+            for d in range(self.table_width):
+                # put p_zk value in each spot in table
                 table[z_k, d] = p_zk(z_k, d)
+
         table = table/table.sum(axis=0, keepdims=1)  # normalize final table
+        rospy.loginfo("sum="+str(np.sum(table)))
         self.sensor_model_table = table
-        print(self.sensor_model_table)
 
     def evaluate(self, particles, observation):
         """
@@ -183,7 +187,7 @@ class SensorModel:
             particle_scans = scans[i]
 
             for j in range(num_obs):
-                x = particle_scans[j]  # Ground truth
+                x = particle_scans[0,j]  # Ground truth
                 z = obs_downsampled[j]  # Observation
 
                 # Clip px (x)
