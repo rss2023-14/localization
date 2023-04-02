@@ -102,6 +102,8 @@ class ParticleFilter:
         result.pose.pose.orientation.z = quat[2]
         result.pose.pose.orientation.w = quat[3]
 
+        rospy.loginfo(self.particles)
+
         self.odom_pub.publish(result)
         return result
 
@@ -121,8 +123,10 @@ class ParticleFilter:
         resampled = self.particles[resampled_indices]
         self.particles = np.repeat(resampled, 2, axis=0)
 
+        self.pose_estimate = self.average_pose()
+
     def odometry_callback(self, msg):
-        self.motion_model.evaluate(
+        self.particles = self.motion_model.evaluate(
             self.particles, [msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.twist.angular.z])
 
         self.pose_estimate = self.average_pose()
