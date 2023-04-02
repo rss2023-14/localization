@@ -98,6 +98,7 @@ class ParticleFilter:
         result.pose.pose.position.y = y
         result.pose.pose.orientation = quaternion_from_euler(0.0, 0.0, theta)
 
+        self.odom_pub.publish(result)
         return result
 
     def lidar_callback(self, msg):
