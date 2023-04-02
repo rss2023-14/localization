@@ -169,8 +169,8 @@ class SensorModel:
 
         # Convert distance -> pixels
         conversion_d_px = 1.0/(self.map_resolution * self.lidar_scale_to_map_scale)
-        observation *= conversion_d_px
-        scans *= conversion_d_px
+        observation = np.multiply(observation, conversion_d_px)
+        scans = np.multiply(scans, conversion_d_px)
 
         def evaluate_particle(particle_scans, lidar_data):
             """

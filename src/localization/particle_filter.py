@@ -26,6 +26,10 @@ class ParticleFilter:
         # average pose of our particles in Odometry.pose
         self.pose_estimate = Odometry()
 
+        # Initialize the models
+        self.motion_model = MotionModel()
+        self.sensor_model = SensorModel()
+
         # Get parameters
         self.particle_filter_frame = \
             rospy.get_param("~particle_filter_frame")
@@ -68,10 +72,6 @@ class ParticleFilter:
         self.odom_pub = rospy.Publisher(
             "/pf/pose/odom", Odometry, queue_size=1)
 
-        # Initialize the models
-        self.motion_model = MotionModel()
-        self.sensor_model = SensorModel()
-
         # Implement the MCL algorithm
         # using the sensor model and the motion model
         #
@@ -106,13 +106,19 @@ class ParticleFilter:
         Resample and duplicate half of the particles according to sensor model probabilities.
         """
         n = np.rint(self.num_particles/2).astype(int)
-        p = SensorModel.evaluate(self.particles, msg.ranges)
-        resampled = np.random.choice(self.particles, size=n, replace=False, p=p)
+        p = self.sensor_model.evaluate(self.particles, msg.ranges)
+        if p is None:
+            return # Map is not set!
 
+        p /= np.sum(p)
+        indices = np.array(range(0,len(self.particles)))
+        resampled_indices = np.random.choice(indices, size=n, replace=False, p=p)
+
+        resampled = self.particles[resampled_indices]
         self.particles = np.repeat(resampled, 2, axis=0)
 
     def odometry_callback(self, msg):
-        MotionModel.evaluate(
+        self.motion_model.evaluate(
             self.particles, [msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.twist.angular.z])
 
         self.pose_estimate = self.average_pose()
