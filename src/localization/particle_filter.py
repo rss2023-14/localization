@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 
 import rospy
-from tf.transformations import euler_from_quaternion
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from sensor_model import SensorModel
 from motion_model import MotionModel
 
@@ -90,14 +90,22 @@ class ParticleFilter:
         y = np.mean(self.particles[:, 1])
         theta = circmean(self.particles[:, 2])
 
-        return [x, y, theta]
+        result = Odometry()
+
+        result.header.frame_id = "/map"
+
+        result.pose.pose.position.x = x
+        result.pose.pose.position.y = y
+        result.pose.pose.orientation = quaternion_from_euler(0.0, 0.0, theta)
+
+        return result
 
     def lidar_callback(self, msg):
         pass
 
     def odometry_callback(self, msg):
         MotionModel.evaluate(
-            self.particles, [msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.angular.z])
+            self.particles, [msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.twist.angular.z])
 
         self.pose_estimate = self.average_pose()
 
