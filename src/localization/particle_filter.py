@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 
 import rospy
+from tf.transformations import euler_from_quaternion
 from sensor_model import SensorModel
 from motion_model import MotionModel
 
@@ -101,8 +102,9 @@ class ParticleFilter:
         self.pose_estimate = self.average_pose()
 
     def pose_callback(self, msg):
-        pos = msg.pose.pose.position
-        self.particles = np.array([[pos.x, pos.y, pos.z]
+        pose = msg.pose.pose
+        theta = euler_from_quaternion([pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w])[2]
+        self.particles = np.array([[pose.position.x, pose.position.y, theta]
                                    for _ in range(self.num_particles)])
 
         self.pose_estimate.pose = msg.pose
