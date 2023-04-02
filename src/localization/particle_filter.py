@@ -101,10 +101,11 @@ class ParticleFilter:
         self.pose_estimate = self.average_pose()
 
     def pose_callback(self, msg):
-        self.particles = np.array([[msg.pose[0], msg.pose[1], msg.pose[5]]
+        pos = msg.pose.pose.position
+        self.particles = np.array([[pos.x, pos.y, pos.z]
                                    for _ in range(self.num_particles)])
 
-        self.pose_estimate.pose = msg
+        self.pose_estimate.pose = msg.pose
 
 
 if __name__ == "__main__":
