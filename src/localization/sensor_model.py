@@ -163,7 +163,7 @@ class SensorModel:
             assert len(observation) >= self.num_beams_per_particle, "Can't downsample LIDAR data, more ray-traced beams than actual LIDAR beams!"
             obs_downsampled = np.zeros(self.num_beams_per_particle)
             for i in range(self.num_beams_per_particle):
-                j = int(np.linspace(0, num_obs-1, self.num_beams_per_particle)[i])
+                j = int(np.linspace(0, len(observation)-1, self.num_beams_per_particle)[i])
                 obs_downsampled[i] = observation[j]
             observation = obs_downsampled
 

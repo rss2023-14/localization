@@ -95,7 +95,7 @@ class ParticleFilter:
 
         result = Odometry()
 
-        result.header.frame_id = "/map"
+        result.header.frame_id = self.particle_filter_frame
 
         result.pose.pose.position.x = x
         result.pose.pose.position.y = y
@@ -114,7 +114,7 @@ class ParticleFilter:
         """
         f = 10
         n = np.rint(self.num_particles/f).astype(int)
-        p = self.sensor_model.evaluate(self.particles, msg.ranges[20:980]) # msg.rangres[20:980] 
+        p = self.sensor_model.evaluate(self.particles, msg.ranges[20:980]) # msg.ranges[20:980] 
                                                                    # test this to see if it gets rid of weird data on rviz
         if p is None:
             return  # Map is not set!
