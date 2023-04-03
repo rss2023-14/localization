@@ -114,7 +114,7 @@ class ParticleFilter:
         """
         f = 10
         n = np.rint(self.num_particles/f).astype(int)
-        p = self.sensor_model.evaluate(self.particles, msg.ranges) # msg.rangres[20:980] 
+        p = self.sensor_model.evaluate(self.particles, msg.ranges[20:980]) # msg.rangres[20:980] 
                                                                    # test this to see if it gets rid of weird data on rviz
         if p is None:
             return  # Map is not set!
