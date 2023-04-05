@@ -180,8 +180,8 @@ class ParticleFilter:
 
         #---
         self.map_tf.sendTransform((pose.position.x, pose.position.y, 0),
-            (pose.orientation.x, pose.orientation.y, pose.orientation.z, -pose.orientation.w), # 180 deg tf
-            rospy.Time.now(), "/map", "/base_link")
+            (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w),
+            rospy.Time.now(), "/map", self.particle_filter_frame)
 
 
 if __name__ == "__main__":
