@@ -151,7 +151,6 @@ class ParticleFilter:
         self.prev_time = time
 
     def pose_callback(self, msg):
-        rospy.loginfo("got a pose!")
         pose = msg.pose.pose
         theta = tf.transformations.euler_from_quaternion(
             [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w])[2]
@@ -164,23 +163,9 @@ class ParticleFilter:
         """
         Broadcast a dynamic transform for the map onto the estimated pose.
         """
-        transform = TransformStamped()
-        transform.header.stamp = rospy.Time.now()
-        transform.header.frame_id = self.particle_filter_frame
-        transform.child_frame_id = "/map"
-
         pose = msg.pose.pose
-        transform.transform.translation.x = pose.position.x
-        transform.transform.translation.y = pose.position.y
-        transform.transform.translation.z = pose.position.z
-        transform.transform.rotation.x = pose.orientation.x
-        transform.transform.rotation.y = pose.orientation.y
-        transform.transform.rotation.z = pose.orientation.z
-        transform.transform.rotation.w = pose.orientation.w
-
-        #---
-        self.map_tf.sendTransform((pose.position.x, pose.position.y, 0),
-            (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w),
+        self.map_tf.sendTransform((-1.0*pose.position.x, pose.position.y, 0),
+            (pose.orientation.x, pose.orientation.y, pose.orientation.z, -1.0*pose.orientation.w),
             rospy.Time.now(), "/map", self.particle_filter_frame)
 
 
