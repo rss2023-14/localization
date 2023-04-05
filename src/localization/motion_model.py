@@ -75,7 +75,8 @@ class MotionModel:
         matrix = np.stack((cos_val, -sin_val, np.zeros_like(theta)), axis=1)
         matrix = np.concatenate((matrix, np.stack((sin_val, cos_val, np.zeros_like(theta)), axis=1)), axis=0)
         matrix = np.concatenate((matrix, np.stack((np.zeros_like(theta), np.zeros_like(theta), np.ones_like(theta)), axis=1)), axis=0)
-
+        
+        odometry = odometry.reshape((-1, 3)) # Reshape odometry to (N, 3)
         result = np.dot(matrix, odometry.T).T + particles
 
         return result
