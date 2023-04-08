@@ -2,6 +2,7 @@
 
 import rospy
 import tf
+import tf2_ros
 from sensor_model import SensorModel
 from motion_model import MotionModel
 
@@ -84,23 +85,24 @@ class ParticleFilter:
         #
         # Publish a transformation frame between the map
         # and the particle_filter_frame.
-        self.map_tf = tf.TransformBroadcaster()
-
-
-    # TODO
+        self.map_tf = tf2_ros.TransformBroadcaster()
 
     def average_pose(self):
-        # take self.particles and find the average pose, return an Odometry message with the pose
+        """
+        Take self.particles and return an Odometry message with the average pose.
+        """
         x = np.mean(self.particles[:, 0])
         y = np.mean(self.particles[:, 1])
         theta = circmean(self.particles[:, 2])
 
         result = Odometry()
 
+        result.header.stamp = rospy.Time.now()
         result.header.frame_id = self.particle_filter_frame
 
         result.pose.pose.position.x = x
         result.pose.pose.position.y = y
+        result.pose.pose.position.z = 0.0
         quat = tf.transformations.quaternion_from_euler(0.0, 0.0, theta)
         result.pose.pose.orientation.x = quat[0]
         result.pose.pose.orientation.y = quat[1]
@@ -133,6 +135,9 @@ class ParticleFilter:
         self.pose_estimate = self.average_pose()
 
     def odometry_callback(self, msg):
+        """
+        Propagate motion model with odometry information.
+        """
         time = rospy.Time.now()
         dt = (time - self.prev_time).to_sec()
 
@@ -151,6 +156,9 @@ class ParticleFilter:
         self.prev_time = time
 
     def pose_callback(self, msg):
+        """
+        Set initial pose using rviz 2D pose estimate.
+        """
         pose = msg.pose.pose
         theta = tf.transformations.euler_from_quaternion(
             [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w])[2]
@@ -164,9 +172,21 @@ class ParticleFilter:
         Broadcast a dynamic transform for the map onto the estimated pose.
         """
         pose = msg.pose.pose
-        self.map_tf.sendTransform((-1.0*pose.position.x, pose.position.y, 0),
-            (pose.orientation.x, pose.orientation.y, pose.orientation.z, -1.0*pose.orientation.w),
-            rospy.Time.now(), "/map", self.particle_filter_frame)
+        tr = TransformStamped()
+        tr.header.stamp = rospy.Time.now()
+        tr.header.frame_id = self.particle_filter_frame
+        tr.child_frame_id = "/map"
+
+        tr.transform.translation.x = pose.position.x
+        tr.transform.translation.y = pose.position.y
+        tr.transform.translation.z = pose.position.z
+
+        tr.transform.rotation.x = pose.orientation.x
+        tr.transform.rotation.y = pose.orientation.y
+        tr.transform.rotation.z = pose.orientation.z
+        tr.transform.rotation.w = pose.orientation.w
+
+        self.map_tf.sendTransform(tr)
 
 
 if __name__ == "__main__":
