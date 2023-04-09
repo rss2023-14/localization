@@ -65,7 +65,7 @@ class MotionModel:
         result = [result[0, 0], result[0, 1], result[0, 2]]
         return result
 
-    def apply_odometry_old(self, odometry, particles):
+    def apply_odometry_2(self, odometry, particles):
         # for all particles as a numpy array
         theta = particles[:, 2]
         sin_val = np.sin(theta)

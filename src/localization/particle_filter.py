@@ -5,7 +5,7 @@ import tf
 import tf2_ros
 from sensor_model import SensorModel
 from motion_model import MotionModel
-# import message_filters
+import message_filters
 
 # import random
 import numpy as np
@@ -56,16 +56,12 @@ class ParticleFilter:
         scan_topic = rospy.get_param("~scan_topic", "/scan")
         odom_topic = rospy.get_param("~odom_topic", "/odom")
 
-        self.laser_sub = rospy.Subscriber(scan_topic, LaserScan,
-                                          self.lidar_callback,  # TODO: Fill this in
-                                          queue_size=1)
-        self.odom_sub = rospy.Subscriber(odom_topic, Odometry,
-                                         self.odometry_callback,  # TODO: Fill this in
-                                         queue_size=1)
+        self.laser_sub = message_filters.Subscriber(scan_topic, LaserScan)
+        self.odom_sub = message_filters.Subscriber(odom_topic, Odometry)
 
-        """ ts = message_filters.ApproximateTimeSynchronizer(
+        ts = message_filters.ApproximateTimeSynchronizer(
             [self.laser_sub, self.odom_sub], 10, 0.05)
-        ts.registerCallback(self.lidar_odometry_callback)"""
+        ts.registerCallback(self.lidar_odometry_callback)
 
         #  *Important Note #2:* You must respond to pose
         #     initialization requests sent to the /initialpose
@@ -118,7 +114,7 @@ class ParticleFilter:
         Resample and duplicate 1/f of the particles according to sensor model probabilities.
         """
 
-        f = 10
+        f = 2
         n = np.rint(self.num_particles/f).astype(int)
         p = self.sensor_model.evaluate(
             self.particles, laser_msg.ranges)  # msg.ranges[20:980]
@@ -127,14 +123,15 @@ class ParticleFilter:
             return  # Map is not set!
 
         p /= np.sum(p)
+
+        self.pose_estimate = self.average_pose(p)
+
         indices = np.array(range(0, len(self.particles)))
         resampled_indices = np.random.choice(
             indices, size=n, replace=False, p=p)
 
         resampled = self.particles[resampled_indices]
         self.particles = np.repeat(resampled, f, axis=0)
-
-        self.pose_estimate = self.average_pose(p)
 
     def average_pose(self, probabilities):
         """
