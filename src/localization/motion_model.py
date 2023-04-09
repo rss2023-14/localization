@@ -29,7 +29,7 @@ class MotionModel:
                 same size
         """
         particles = np.array(particles)
-        # noisy_odometry = self.noisy_odometry(odometry)
+        noisy_odometry = self.noisy_odometry(odometry)
         # result = self.apply_odometry(noisy_odometry, particles)
 
         result = []
@@ -65,17 +65,21 @@ class MotionModel:
         result = [result[0, 0], result[0, 1], result[0, 2]]
         return result
 
-    def apply_odometry2(self, odometry, particles):
+    def apply_odometry_old(self, odometry, particles):
         # for all particles as a numpy array
         theta = particles[:, 2]
         sin_val = np.sin(theta)
         cos_val = np.cos(theta)
 
-        matrix = np.stack((cos_val, -sin_val, np.zeros_like(theta)), axis=1)
+        """ matrix = np.stack((cos_val, -sin_val, np.zeros_like(theta)), axis=1)
         matrix = np.concatenate(
             (matrix, np.stack((sin_val, cos_val, np.zeros_like(theta)), axis=1)), axis=0)
         matrix = np.concatenate((matrix, np.stack((np.zeros_like(
-            theta), np.zeros_like(theta), np.ones_like(theta)), axis=1)), axis=0)
+            theta), np.zeros_like(theta), np.ones_like(theta)), axis=1)), axis=0) """
+
+        matrix = np.stack(np.matrix([[cos_val, -sin_val, 0.0],
+                                     [sin_val, cos_val, 0.0],
+                                     [0.0, 0.0, 1.0]]))
 
         odometry = odometry.reshape((-1, 3))  # Reshape odometry to (N, 3)
         result = np.dot(matrix, odometry.T).T + particles
