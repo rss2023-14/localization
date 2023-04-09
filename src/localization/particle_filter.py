@@ -29,11 +29,7 @@ class ParticleFilter:
         self.particles = np.array([[0.0, 0.0, 0.0]
                                   for _ in range(self.num_particles)])
 
-        self.weights = [
-            1.0 / self.num_particles for _ in range(self.num_particles)]
-
-        # average pose of our particles in Odometry.pose
-        self.pose_estimate = Odometry()
+        # self.weights = [ 1.0 / self.num_particles for _ in range(self.num_particles)]
 
         # Initialize the models
         self.motion_model = MotionModel()
@@ -124,7 +120,7 @@ class ParticleFilter:
 
         p /= np.sum(p)
 
-        self.pose_estimate = self.average_pose(p)
+        self.average_pose(p)
 
         indices = np.array(range(0, len(self.particles)))
         resampled_indices = np.random.choice(
@@ -137,7 +133,7 @@ class ParticleFilter:
         """
         Take self.particles and return an Odometry message with the average pose.
         """
-        x = np.averaege(self.particles[:, 0], probabilities)
+        x = np.average(self.particles[:, 0], probabilities)
         y = np.average(self.particles[:, 1], probabilities)
         theta = circular_mean(self.particles[:, 2], probabilities)
 
@@ -175,7 +171,7 @@ class ParticleFilter:
 
         self.weights = p
 
-        self.pose_estimate = self.average_pose(self.weights)
+        self.average_pose(self.weights)
 
         indices = np.array(range(0, len(self.particles)))
         resampled_indices = np.random.choice(
@@ -202,7 +198,7 @@ class ParticleFilter:
                              (msg.twist.twist.linear.y * dt),
                              (msg.twist.twist.angular.z * dt)])
 
-        self.pose_estimate = self.average_pose(self.weights)
+        self.average_pose(self.weights)
         self.prev_time = time
 
     def pose_callback(self, msg):
@@ -215,8 +211,7 @@ class ParticleFilter:
         self.particles = np.array([[pose.position.x, pose.position.y, theta]
                                    for _ in range(self.num_particles)])
 
-        self.weights = [
-            1.0 / self.num_particles for _ in range(self.num_particles)]
+        # self.weights = [1.0 / self.num_particles for _ in range(self.num_particles)]
 
         self.pose_estimate.pose = msg.pose
 
@@ -258,7 +253,7 @@ def circular_mean(angles, weights=None):
     angle_mean = np.arctan2(y, x)
     angle_variance = 1. - np.linalg.norm(vector)  # x*2+y*2 = hypot(x,y)
 
-    return angle_mean, angle_variance
+    return angle_mean
 
 
 if __name__ == "__main__":
