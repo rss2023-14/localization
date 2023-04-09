@@ -10,7 +10,7 @@ import message_filters
 import random
 import numpy as np
 # from scipy.stats import circmean
-from astropy.stats import circmean
+# from astropy.stats import circmean
 
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry
@@ -135,7 +135,7 @@ class ParticleFilter:
         """
         x = np.averaege(self.particles[:, 0], probabilities)
         y = np.average(self.particles[:, 1], probabilities)
-        theta = circmean(self.particles[:, 2], weights=probabilities)
+        theta = circular_mean(self.particles[:, 2], probabilities)
 
         result = Odometry()
 
@@ -230,6 +230,25 @@ class ParticleFilter:
         tr.transform.rotation.w = pose.orientation.w
 
         self.map_tf.sendTransform(tr)
+
+
+def circular_mean(angles, weights=None):
+
+    # https://en.wikipedia.org/wiki/Circular_mean
+
+    if weights is None:
+        weights = np.ones(len(angles))
+
+    vectors = [[w*np.cos(a), w*np.sin(a)] for a, w in zip(angles, weights)]
+
+    vector = np.sum(vectors, axis=0) / np.sum(weights)
+
+    x, y = vector
+
+    angle_mean = np.arctan2(y, x)
+    angle_variance = 1. - np.linalg.norm(vector)  # x*2+y*2 = hypot(x,y)
+
+    return angle_mean, angle_variance
 
 
 if __name__ == "__main__":
