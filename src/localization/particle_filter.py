@@ -21,13 +21,15 @@ class ParticleFilter:
 
     def __init__(self):
         self.prev_time = rospy.Time.now()
-
-        # how many particles we're using
         self.num_particles = rospy.get_param("~num_particles")
 
-        # our particles list
+        # Wait for initial pose estimate
         self.particles = np.array([[0.0, 0.0, 0.0]
                                   for _ in range(self.num_particles)])
+        self.pose_sub = rospy.Subscriber("/initialpose", PoseWithCovarianceStamped,
+                                         self.pose_callback,  # TODO: Fill this in
+                                         queue_size=1)
+        self.pose_callback(self.wait_for_message("/initialpose", PoseWithCovarianceStamped))
 
         # self.weights = [ 1.0 / self.num_particles for _ in range(self.num_particles)]
 
@@ -38,54 +40,21 @@ class ParticleFilter:
         # Get parameters
         self.particle_filter_frame = \
             rospy.get_param("~particle_filter_frame")
-
-        # Initialize publishers/subscribers
-        #
-        #  *Important Note #1:* It is critical for your particle
-        #     filter to obtain the following topic names from the
-        #     parameters for the autograder to work correctly. Note
-        #     that while the Odometry message contains both a pose and
-        #     a twist component, you will only be provided with the
-        #     twist component, so you should rely only on that
-        #     information, and *not* use the pose component.
-
         scan_topic = rospy.get_param("~scan_topic", "/scan")
         odom_topic = rospy.get_param("~odom_topic", "/odom")
 
+        # Combine callbacks to prevent issues with resampling and probability calculations
         self.laser_sub = message_filters.Subscriber(scan_topic, LaserScan)
         self.odom_sub = message_filters.Subscriber(odom_topic, Odometry)
-
         ts = message_filters.ApproximateTimeSynchronizer(
             [self.laser_sub, self.odom_sub], 10, 0.05)
         ts.registerCallback(self.lidar_odometry_callback)
 
-        #  *Important Note #2:* You must respond to pose
-        #     initialization requests sent to the /initialpose
-        #     topic. You can test that this works properly using the
-        #     "Pose Estimate" feature in RViz, which publishes to
-        #     /initialpose.
-        self.pose_sub = rospy.Subscriber("/initialpose", PoseWithCovarianceStamped,
-                                         self.pose_callback,  # TODO: Fill this in
-                                         queue_size=1)
-
-        #  *Important Note #3:* You must publish your pose estimate to
-        #     the following topic. In particular, you must use the
-        #     pose field of the Odometry message. You do not need to
-        #     provide the twist part of the Odometry message. The
-        #     odometry you publish here should be with respect to the
-        #     "/map" frame.
+        # To publish average pose
         self.odom_pub = rospy.Publisher(
             "/pf/pose/odom", Odometry, queue_size=1)
 
-        # Implement the MCL algorithm
-        # using the sensor model and the motion model
-        #
-        # Make sure you include some way to initialize
-        # your particles, ideally with some sort
-        # of interactive interface in rviz
-        #
-        # Publish a transformation frame between the map
-        # and the particle_filter_frame.
+        # Transform for map
         self.map_tf = tf2_ros.TransformBroadcaster()
 
     def lidar_odometry_callback(self, laser_msg, odom_msg):
