@@ -29,7 +29,8 @@ class ParticleFilter:
         self.pose_sub = rospy.Subscriber("/initialpose", PoseWithCovarianceStamped,
                                          self.pose_callback,  # TODO: Fill this in
                                          queue_size=1)
-        self.pose_callback(rospy.wait_for_message("/initialpose", PoseWithCovarianceStamped))
+        self.pose_callback(rospy.wait_for_message(
+            "/initialpose", PoseWithCovarianceStamped))
 
         # self.weights = [ 1.0 / self.num_particles for _ in range(self.num_particles)]
 
@@ -204,22 +205,13 @@ class ParticleFilter:
         self.map_tf.sendTransform(tr)
 
 
-def circular_mean(angles, weights=None):
+def circular_mean(angles, weights):
 
-    # https://en.wikipedia.org/wiki/Circular_mean
+    vectors = [[np.cos(angle), np.sin(angle)] for angle in angles]
 
-    if weights is None:
-        weights = np.ones(len(angles))
+    avg_vec = np.average(vectors, weights)
 
-    vectors = [[w*np.cos(a), w*np.sin(a)] for a, w in zip(angles, weights)]
-
-    vector = np.sum(vectors, axis=0) / np.sum(weights)
-
-    x, y = vector
-
-    angle_mean = np.arctan2(y, x)
-
-    return angle_mean
+    return np.arctan2(avg_vec[0], avg_vec[1])
 
 
 if __name__ == "__main__":
