@@ -7,10 +7,7 @@ from sensor_model import SensorModel
 from motion_model import MotionModel
 import message_filters
 
-# import random
 import numpy as np
-# from scipy.stats import circmean
-# from astropy.stats import circmean
 
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry
@@ -23,14 +20,14 @@ class ParticleFilter:
         self.prev_time = rospy.Time.now()
         self.num_particles = rospy.get_param("~num_particles")
 
-        # Wait for initial pose estimate
+        # Initial pose estimate
         self.particles = np.array([[0.0, 0.0, 0.0]
                                   for _ in range(self.num_particles)])
         self.pose_sub = rospy.Subscriber("/initialpose", PoseWithCovarianceStamped,
                                          self.pose_callback,  # TODO: Fill this in
                                          queue_size=1)
-        self.pose_callback(rospy.wait_for_message(
-            "/initialpose", PoseWithCovarianceStamped))
+        # self.pose_callback(rospy.wait_for_message(
+        #     "/initialpose", PoseWithCovarianceStamped))
 
         # self.weights = [ 1.0 / self.num_particles for _ in range(self.num_particles)]
 
@@ -128,6 +125,8 @@ class ParticleFilter:
     def lidar_callback(self, msg):
         """
         Resample and duplicate 1/f of the particles according to sensor model probabilities.
+
+        Deprecated.
         """
         f = 2
         n = np.rint(self.num_particles/f).astype(int)
@@ -153,6 +152,8 @@ class ParticleFilter:
     def odometry_callback(self, msg):
         """
         Propagate motion model with odometry information.
+
+        Deprecated.
         """
         time = rospy.Time.now()
         dt = (time - self.prev_time).to_sec()
@@ -206,10 +207,11 @@ class ParticleFilter:
 
 
 def circular_mean(angles, weights):
-
+    """
+    Calculate probability-weighted circular mean of angles.
+    """
     vectors = [[np.cos(angle), np.sin(angle)] for angle in angles]
-
-    avg_vec = np.average(vectors, weights)
+    avg_vec = np.average(vectors, weights=weights, axis=0)
 
     return np.arctan2(avg_vec[0], avg_vec[1])
 
