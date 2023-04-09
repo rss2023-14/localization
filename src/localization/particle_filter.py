@@ -29,7 +29,7 @@ class ParticleFilter:
         self.pose_sub = rospy.Subscriber("/initialpose", PoseWithCovarianceStamped,
                                          self.pose_callback,  # TODO: Fill this in
                                          queue_size=1)
-        self.pose_callback(self.wait_for_message("/initialpose", PoseWithCovarianceStamped))
+        self.pose_callback(rospy.wait_for_message("/initialpose", PoseWithCovarianceStamped))
 
         # self.weights = [ 1.0 / self.num_particles for _ in range(self.num_particles)]
 
