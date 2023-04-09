@@ -133,8 +133,8 @@ class ParticleFilter:
         """
         Take self.particles and return an Odometry message with the average pose.
         """
-        x = np.average(self.particles[:, 0], probabilities)
-        y = np.average(self.particles[:, 1], probabilities)
+        x = np.average(self.particles[:, 0], weights=probabilities)
+        y = np.average(self.particles[:, 1], weights=probabilities)
         theta = circular_mean(self.particles[:, 2], probabilities)
 
         result = Odometry()
@@ -249,7 +249,6 @@ def circular_mean(angles, weights=None):
     x, y = vector
 
     angle_mean = np.arctan2(y, x)
-    angle_variance = 1. - np.linalg.norm(vector)  # x*2+y*2 = hypot(x,y)
 
     return angle_mean
 
