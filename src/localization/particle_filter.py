@@ -213,8 +213,6 @@ class ParticleFilter:
 
         # self.weights = [1.0 / self.num_particles for _ in range(self.num_particles)]
 
-        self.pose_estimate.pose = msg.pose
-
     def map_transform(self, msg):
         """
         Broadcast a dynamic transform for the map onto the estimated pose.
