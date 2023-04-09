@@ -5,10 +5,12 @@ import tf
 import tf2_ros
 from sensor_model import SensorModel
 from motion_model import MotionModel
+import message_filters
 
 import random
 import numpy as np
-from scipy.stats import circmean
+# from scipy.stats import circmean
+from astropy.stats import circmean
 
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry
@@ -51,12 +53,12 @@ class ParticleFilter:
         scan_topic = rospy.get_param("~scan_topic", "/scan")
         odom_topic = rospy.get_param("~odom_topic", "/odom")
 
-        self.laser_sub = rospy.Subscriber(scan_topic, LaserScan,
-                                          self.lidar_callback,  # TODO: Fill this in
-                                          queue_size=1)
-        self.odom_sub = rospy.Subscriber(odom_topic, Odometry,
-                                         self.odometry_callback,  # TODO: Fill this in
-                                         queue_size=1)
+        self.laser_sub = message_filters.Subscriber(scan_topic, LaserScan)
+        self.odom_sub = message_filters.Subscriber(odom_topic, Odometry)
+
+        ts = message_filters.ApproximateTimeSynchronizer(
+            [self.laser_sub, self.odom_sub], 10, 0.05)
+        ts.registerCallback(self.lidar_odometry_callback)
 
         #  *Important Note #2:* You must respond to pose
         #     initialization requests sent to the /initialpose
@@ -87,13 +89,53 @@ class ParticleFilter:
         # and the particle_filter_frame.
         self.map_tf = tf2_ros.TransformBroadcaster()
 
-    def average_pose(self):
+    def lidar_odometry_callback(self, laser_msg, odom_msg):
+        """
+        Propagate motion model with odometry information.
+        """
+        time = rospy.Time.now()
+        dt = (time - self.prev_time).to_sec()
+        self.prev_time = time
+
+        """ self.particles = self.motion_model.evaluate(
+            self.particles, [(msg.twist.twist.linear.x * dt) + random.gauss(mu=0.0, sigma=0.1),
+                             (msg.twist.twist.linear.y * dt) +
+                             random.gauss(mu=0.0, sigma=0.1),
+                             (msg.twist.twist.angular.z * dt) + random.gauss(mu=0.0, sigma=0.08)]) """
+
+        self.particles = self.motion_model.evaluate(
+            self.particles, [(odom_msg.twist.twist.linear.x * dt),
+                             (odom_msg.twist.twist.linear.y * dt),
+                             (odom_msg.twist.twist.angular.z * dt)])
+        """
+        Resample and duplicate 1/f of the particles according to sensor model probabilities.
+        """
+
+        f = 10
+        n = np.rint(self.num_particles/f).astype(int)
+        p = self.sensor_model.evaluate(
+            self.particles, laser_msg.ranges)  # msg.ranges[20:980]
+        # test this to see if it gets rid of weird data on rviz
+        if p is None:
+            return  # Map is not set!
+
+        p /= np.sum(p)
+        indices = np.array(range(0, len(self.particles)))
+        resampled_indices = np.random.choice(
+            indices, size=n, replace=False, p=p)
+
+        resampled = self.particles[resampled_indices]
+        self.particles = np.repeat(resampled, f, axis=0)
+
+        self.pose_estimate = self.average_pose(p)
+
+    def average_pose(self, probabilities):
         """
         Take self.particles and return an Odometry message with the average pose.
         """
-        x = np.mean(self.particles[:, 0])
-        y = np.mean(self.particles[:, 1])
-        theta = circmean(self.particles[:, 2])
+        x = np.averaege(self.particles[:, 0], probabilities)
+        y = np.average(self.particles[:, 1], probabilities)
+        theta = circmean(self.particles[:, 2], weights=probabilities)
 
         result = Odometry()
 
@@ -119,8 +161,9 @@ class ParticleFilter:
         """
         f = 10
         n = np.rint(self.num_particles/f).astype(int)
-        p = self.sensor_model.evaluate(self.particles, msg.ranges[20:980]) # msg.ranges[20:980] 
-                                                                   # test this to see if it gets rid of weird data on rviz
+        p = self.sensor_model.evaluate(
+            self.particles, msg.ranges)  # msg.ranges[20:980]
+        # test this to see if it gets rid of weird data on rviz
         if p is None:
             return  # Map is not set!
 

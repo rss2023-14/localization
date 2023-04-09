@@ -29,13 +29,13 @@ class MotionModel:
                 same size
         """
         particles = np.array(particles)
-        noisy_odometry = self.noisy_odometry(odometry)
-        result = self.apply_odometry(noisy_odometry, particles)
+        # noisy_odometry = self.noisy_odometry(odometry)
+        # result = self.apply_odometry(noisy_odometry, particles)
 
-        # result = []
-        # for particle in particles:
-        #     result.append(self.apply_odometry(
-        #         self.noisy_odometry(odometry), particle))
+        result = []
+        for particle in particles:
+            result.append(self.apply_odometry(
+                self.noisy_odometry(odometry), particle))
         """ result = np.apply_along_axis(
             self.apply_odometry, 1, particles, odometry) """
         return np.array(result)
@@ -44,41 +44,40 @@ class MotionModel:
         if self.is_deterministic:
             return odometry
         else:
-            dx = odometry[0] + random.gauss(mu=0.0, sigma=0.01)
-            dy = odometry[1] + random.gauss(mu=0.0, sigma=0.01)
-            dtheta = odometry[2] + random.gauss(mu=0.0, sigma=0.008)
+            dx = odometry[0] + random.gauss(mu=0.0, sigma=0.05)
+            dy = odometry[1] + random.gauss(mu=0.0, sigma=0.05)
+            dtheta = odometry[2] + random.gauss(mu=0.0, sigma=0.08)
 
             return [dx, dy, dtheta]
 
-    # def apply_odometry(self, odometry, particle):
-    #     #for a single particle
-    #     theta = particle[2]
-    #     sin_val = np.sin(theta)
-    #     cos_val = np.cos(theta)
+    def apply_odometry(self, odometry, particle):
+        # for a single particle
+        theta = particle[2]
+        sin_val = np.sin(theta)
+        cos_val = np.cos(theta)
 
-    #     matrix = np.matrix([[cos_val, -sin_val, 0.0],
-    #                         [sin_val, cos_val, 0.0],
-    #                         [0.0, 0.0, 1.0]])
+        matrix = np.matrix([[cos_val, -sin_val, 0.0],
+                            [sin_val, cos_val, 0.0],
+                            [0.0, 0.0, 1.0]])
 
-    #     result = np.dot(matrix, odometry) + np.array(particle)
+        result = np.dot(matrix, odometry) + np.array(particle)
 
-    #     result = [result[0, 0], result[0, 1], result[0, 2]]
+        result = [result[0, 0], result[0, 1], result[0, 2]]
+        return result
 
-    #     return result
-
-    def apply_odometry(self, odometry, particles):
-        #for all particles as a numpy array 
+    def apply_odometry2(self, odometry, particles):
+        # for all particles as a numpy array
         theta = particles[:, 2]
         sin_val = np.sin(theta)
         cos_val = np.cos(theta)
 
         matrix = np.stack((cos_val, -sin_val, np.zeros_like(theta)), axis=1)
-        matrix = np.concatenate((matrix, np.stack((sin_val, cos_val, np.zeros_like(theta)), axis=1)), axis=0)
-        matrix = np.concatenate((matrix, np.stack((np.zeros_like(theta), np.zeros_like(theta), np.ones_like(theta)), axis=1)), axis=0)
-        
-        odometry = odometry.reshape((-1, 3)) # Reshape odometry to (N, 3)
+        matrix = np.concatenate(
+            (matrix, np.stack((sin_val, cos_val, np.zeros_like(theta)), axis=1)), axis=0)
+        matrix = np.concatenate((matrix, np.stack((np.zeros_like(
+            theta), np.zeros_like(theta), np.ones_like(theta)), axis=1)), axis=0)
+
+        odometry = odometry.reshape((-1, 3))  # Reshape odometry to (N, 3)
         result = np.dot(matrix, odometry.T).T + particles
 
         return result
-
-
