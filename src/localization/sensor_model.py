@@ -172,34 +172,40 @@ class SensorModel:
         observation = np.multiply(observation, conversion_d_px)
         scans = np.multiply(scans, conversion_d_px)
 
-        def evaluate_particle(particle_scans, lidar_data):
-            """
-            Helper function for finding probability of a single particle.
+        # def evaluate_particle(particle_scans, lidar_data):
+        #     """
+        #     Helper function for finding probability of a single particle.
 
-            Assumes
-                - particle_scans and lidar_data are 1D arrays of equal length
-                - both arrays are in px, not m
-                - both arrays are clipped between 0 and self.table_width-1
-            """
-            n = len(particle_scans)
-            probabilities = np.zeros(n)
+        #     Assumes
+        #         - particle_scans and lidar_data are 1D arrays of equal length
+        #         - both arrays are in px, not m
+        #         - both arrays are clipped between 0 and self.table_width-1
+        #     """
+        #     n = len(particle_scans)
+        #     probabilities = np.zeros(n)
 
-            for i in range(n):
-                z_k = lidar_data[i]
-                d = particle_scans[i]
-                probabilities[i] = self.sensor_model_table[z_k, d]
+        #     for i in range(n):
+        #         z_k = lidar_data[i]
+        #         d = particle_scans[i]
+        #         probabilities[i] = self.sensor_model_table[z_k, d]
 
-            return np.prod(probabilities)**(1.0/2.2)
+        #     return np.prod(probabilities)**(1.0/2.2)
 
-        # Assign probability to each particle
+        # # Assign probability to each particle
         scans = np.rint(np.clip(scans, 0, self.table_width-1)).astype(int)
         observation = np.rint(np.clip(observation, 0, self.table_width-1)).astype(int)
-        probabilities = np.zeros(len(particles))
+        # probabilities = np.zeros(len(particles))
 
-        for i in range(len(particles)):
-            probabilities[i] = evaluate_particle(scans[i], observation)
+        # for i in range(len(particles)):
+        #     probabilities[i] = evaluate_particle(scans[i], observation)
+        # return probabilities
 
-        return probabilities
+        # --- VECTORIZED
+        n, m = len(scans), len(observation)
+        observation = np.repeat(np.array(observation[:, np.newaxis]), n, axis=1).T
+        probabilities = self.sensor_model_table[observation, scans]
+        return np.power(np.prod(probabilities, axis=1), 1.0/2.2)
+        # ---
         ####################################
 
     def map_callback(self, map_msg):

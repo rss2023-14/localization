@@ -107,7 +107,8 @@ class ParticleFilter:
         result = Odometry()
 
         result.header.stamp = rospy.Time.now()
-        result.header.frame_id = self.particle_filter_frame
+        # result.header.frame_id = self.particle_filter_frame
+        result.header.frame_id = "/map"
 
         result.pose.pose.position.x = x
         result.pose.pose.position.y = y
@@ -191,12 +192,21 @@ class ParticleFilter:
         pose = msg.pose.pose
         tr = TransformStamped()
         tr.header.stamp = rospy.Time.now()
-        tr.header.frame_id = self.particle_filter_frame
-        tr.child_frame_id = "/map"
+        tr.header.frame_id = "/map"
+        tr.child_frame_id = self.particle_filter_frame
 
         tr.transform.translation.x = pose.position.x
         tr.transform.translation.y = pose.position.y
         tr.transform.translation.z = pose.position.z
+
+        # q_orig = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
+        # q = tf.transformations.quaternion_multiply(q_orig, [0,0,1,np.deg2rad(-90)])
+        # q = q/np.linalg.norm(q)
+
+        # tr.transform.rotation.x = q[0]
+        # tr.transform.rotation.y = q[1]
+        # tr.transform.rotation.z = q[2]
+        # tr.transform.rotation.w = q[3]
 
         tr.transform.rotation.x = pose.orientation.x
         tr.transform.rotation.y = pose.orientation.y
@@ -210,10 +220,14 @@ def circular_mean(angles, weights):
     """
     Calculate probability-weighted circular mean of angles.
     """
-    vectors = [[np.cos(angle), np.sin(angle)] for angle in angles]
-    avg_vec = np.average(vectors, weights=weights, axis=0)
+    # vectors = [[np.cos(angle), np.sin(angle)] for angle in angles]
+    def unitizer(angle):
+        return [np.cos(angle), np.sin(angle)]
 
-    return np.arctan2(avg_vec[0], avg_vec[1])
+    vectors = unitizer(angles)
+    avg_vec = np.average(vectors, weights=weights, axis=1)
+
+    return np.arctan2(avg_vec[1], avg_vec[0])
 
 
 if __name__ == "__main__":

@@ -44,9 +44,9 @@ class MotionModel:
         if self.is_deterministic:
             return odometry
         else:
-            dx = odometry[0] + random.gauss(mu=0.0, sigma=0.05)
-            dy = odometry[1] + random.gauss(mu=0.0, sigma=0.05)
-            dtheta = odometry[2] + random.gauss(mu=0.0, sigma=0.08)
+            dx = odometry[0] + random.gauss(mu=0.0, sigma=0.10)
+            dy = odometry[1] + random.gauss(mu=0.0, sigma=0.10)
+            dtheta = odometry[2] + random.gauss(mu=0.0, sigma=0.16)
 
             return [dx, dy, dtheta]
 
