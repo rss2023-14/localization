@@ -17,10 +17,13 @@ class SensorModel:
     def __init__(self):
         # Fetch parameters
         self.map_topic = rospy.get_param("~map_topic")
-        self.num_beams_per_particle = rospy.get_param("~num_beams_per_particle")
-        self.scan_theta_discretization = rospy.get_param("~scan_theta_discretization")
+        self.num_beams_per_particle = rospy.get_param(
+            "~num_beams_per_particle")
+        self.scan_theta_discretization = rospy.get_param(
+            "~scan_theta_discretization")
         self.scan_field_of_view = rospy.get_param("~scan_field_of_view")
-        self.lidar_scale_to_map_scale = rospy.get_param("~lidar_scale_to_map_scale", 1.0)
+        self.lidar_scale_to_map_scale = rospy.get_param(
+            "~lidar_scale_to_map_scale", 1.0)
 
         self.alpha_hit = 0.74
         self.alpha_short = 0.07
@@ -79,7 +82,7 @@ class SensorModel:
 
         def p_hit(z_k, d, sigma, z_max=self.table_width):
             if (0 <= z_k) and (z_k <= z_max-1):
-                return (1.0/math.sqrt(2.0*math.pi*(sigma**2)))*math.exp(-1.0*((z_k-d)**2)/(2.0*(sigma**2)))
+                return (1.0/math.sqrt(2.0*math.pi*(sigma**2)))*math.exp(-((z_k-d)**2)/(2.0*(sigma**2)))
             return 0
 
         def p_short(z_k, d):
@@ -99,13 +102,15 @@ class SensorModel:
             return 0
 
         # Construct normalized table for just p_hit
-        p_hit_table = np.empty((self.table_width, self.table_width))  # initalize table
+        p_hit_table = np.empty(
+            (self.table_width, self.table_width))  # initalize table
         for z_k in range(self.table_width):
             for d in range(self.table_width):
                 p_hit_table[z_k, d] = p_hit(z_k, d, self.sigma_hit)
-        p_hit_table = p_hit_table / p_hit_table.sum(axis=0, keepdims=1)  # normalize p_hit
+        p_hit_table = p_hit_table / \
+            p_hit_table.sum(axis=0, keepdims=1)  # normalize p_hit
 
-        #----
+        # ----
 
         def p_zk(z_k, d, z_max=self.table_width):
             """
@@ -117,7 +122,8 @@ class SensorModel:
                     + self.alpha_rand * p_rand(z_k, z_max))
 
         # Use p_hit_table to construct final table
-        table = np.empty((self.table_width, self.table_width))  # initalize table
+        table = np.empty((self.table_width, self.table_width)
+                         )  # initalize table
         for z_k in range(self.table_width):  # iterative over every space in grid
             for d in range(self.table_width):
                 # put p_zk value in each spot in table
@@ -160,15 +166,18 @@ class SensorModel:
 
         # Downsample, if necessary
         if len(observation) > self.num_beams_per_particle:
-            assert len(observation) >= self.num_beams_per_particle, "Can't downsample LIDAR data, more ray-traced beams than actual LIDAR beams!"
+            assert len(
+                observation) >= self.num_beams_per_particle, "Can't downsample LIDAR data, more ray-traced beams than actual LIDAR beams!"
             obs_downsampled = np.zeros(self.num_beams_per_particle)
             for i in range(self.num_beams_per_particle):
-                j = int(np.linspace(0, len(observation)-1, self.num_beams_per_particle)[i])
+                j = int(np.linspace(0, len(observation) -
+                        1, self.num_beams_per_particle)[i])
                 obs_downsampled[i] = observation[j]
             observation = obs_downsampled
 
         # Convert distance -> pixels
-        conversion_d_px = 1.0/(self.map_resolution * self.lidar_scale_to_map_scale)
+        conversion_d_px = 1.0/(self.map_resolution *
+                               self.lidar_scale_to_map_scale)
         observation = np.multiply(observation, conversion_d_px)
         scans = np.multiply(scans, conversion_d_px)
 
@@ -193,7 +202,8 @@ class SensorModel:
 
         # # Assign probability to each particle
         scans = np.rint(np.clip(scans, 0, self.table_width-1)).astype(int)
-        observation = np.rint(np.clip(observation, 0, self.table_width-1)).astype(int)
+        observation = np.rint(
+            np.clip(observation, 0, self.table_width-1)).astype(int)
         # probabilities = np.zeros(len(particles))
 
         # for i in range(len(particles)):
@@ -202,7 +212,8 @@ class SensorModel:
 
         # --- VECTORIZED
         n, m = len(scans), len(observation)
-        observation = np.repeat(np.array(observation[:, np.newaxis]), n, axis=1).T
+        observation = np.repeat(
+            np.array(observation[:, np.newaxis]), n, axis=1).T
         probabilities = self.sensor_model_table[observation, scans]
         return np.power(np.prod(probabilities, axis=1), 1.0/2.2)
         # ---

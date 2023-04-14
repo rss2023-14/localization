@@ -220,14 +220,9 @@ def circular_mean(angles, weights):
     """
     Calculate probability-weighted circular mean of angles.
     """
-    # vectors = [[np.cos(angle), np.sin(angle)] for angle in angles]
-    def unitizer(angle):
-        return [np.cos(angle), np.sin(angle)]
-
-    vectors = unitizer(angles)
-    avg_vec = np.average(vectors, weights=weights, axis=1)
-
-    return np.arctan2(avg_vec[1], avg_vec[0])
+    avg_vec = np.average([np.sin(angles), np.cos(angles)],
+                         weights=weights, axis=1)
+    return np.arctan2(avg_vec[0], avg_vec[1])
 
 
 if __name__ == "__main__":
