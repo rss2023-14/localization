@@ -100,8 +100,8 @@ class ParticleFilter:
         """
         Take self.particles and return an Odometry message with the average pose.
         """
-        x = np.average(self.particles[:, 0], weights=probabilities)
-        y = np.average(self.particles[:, 1], weights=probabilities)
+        x = np.average(self.particles[:, 0], weights=probabilities, axis=0)
+        y = np.average(self.particles[:, 1], weights=probabilities, axis=0)
         theta = circular_mean(self.particles[:, 2], probabilities)
 
         result = Odometry()

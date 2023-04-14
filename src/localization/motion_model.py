@@ -31,7 +31,7 @@ class MotionModel:
         """
         self.odometry = odometry
 
-        return np.apply_along_axis(self.apply_odometry, 1, particles)
+        return np.apply_along_axis(self.apply_odometry, 1, np.array(particles))
 
     def noisy_odometry(self):
         """return an odometry reading with noise applied if not deterministic, otherwise return the base odometry reading
@@ -42,9 +42,9 @@ class MotionModel:
         if self.is_deterministic:
             return self.odometry
         else:
-            dx = self.odometry[0] + random.gauss(mu=0.0, sigma=0.10)
-            dy = self.odometry[1] + random.gauss(mu=0.0, sigma=0.10)
-            dtheta = self.odometry[2] + random.gauss(mu=0.0, sigma=0.16)
+            dx = self.odometry[0] + random.gauss(mu=0.0, sigma=0.04)
+            dy = self.odometry[1] + random.gauss(mu=0.0, sigma=0.04)
+            dtheta = self.odometry[2] + random.gauss(mu=0.0, sigma=0.08)
 
             return [dx, dy, dtheta]
 
@@ -54,8 +54,9 @@ class MotionModel:
         Returns:
             array: particle
         """
-        sin_val = np.sin(particle[2])
-        cos_val = np.cos(particle[2])
+        theta = particle.reshape((3,))[2]
+        sin_val = np.sin(theta)
+        cos_val = np.cos(theta)
 
         matrix = np.matrix([[cos_val, -sin_val, 0.0],
                             [sin_val, cos_val, 0.0],
