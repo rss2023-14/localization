@@ -68,15 +68,17 @@ class ParticleFilter:
                              (msg.twist.twist.linear.y * dt) +
                              random.gauss(mu=0.0, sigma=0.1),
                              (msg.twist.twist.angular.z * dt) + random.gauss(mu=0.0, sigma=0.08)]) """
-
+        motion_model_start = rospy.Time.now()
         self.particles = self.motion_model.evaluate(
             self.particles, [(odom_msg.twist.twist.linear.x * dt),
                              (odom_msg.twist.twist.linear.y * dt),
                              (odom_msg.twist.twist.angular.z * dt)])
+        
+        motion_model_time = (rospy.Time.now() - motion_model_start).to_nsec()
         """
         Resample and duplicate 1/f of the particles according to sensor model probabilities.
         """
-
+        sensor_model_start = rospy.Time.now()
         f = 2
         n = np.rint(self.num_particles/f).astype(int)
         p = self.sensor_model.evaluate(
@@ -86,15 +88,27 @@ class ParticleFilter:
             return  # Map is not set!
 
         p /= np.sum(p)
+        
+        sensor_model_time = (rospy.Time.now() - sensor_model_start).to_nsec()
 
+        averaging_start = rospy.Time.now()
+        
         self.average_pose(p)
 
+        averaging_time = (rospy.Time.now() - averaging_start).to_nsec()
+        
+        leftover_start = rospy.Time.now()
+        
         indices = np.array(range(0, len(self.particles)))
         resampled_indices = np.random.choice(
             indices, size=n, replace=False, p=p)
 
         resampled = self.particles[resampled_indices]
         self.particles = np.repeat(resampled, f, axis=0)
+        
+        leftover_time = (rospy.Time.now() - leftover_start).to_nsec()
+        
+        rospy.loginfo("\nMotion model: %s\nSensor model: %s\nAveraging: %s\nLeftover: %s", motion_model_time, sensor_model_time, averaging_time, leftover_time)
 
     def average_pose(self, probabilities):
         """
