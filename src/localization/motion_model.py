@@ -6,9 +6,7 @@ import rospy
 
 
 class MotionModel:
-
     def __init__(self):
-        self.is_deterministic = rospy.get_param("~deterministic")
         self.odometry = None
 
     def evaluate(self, particles, odometry):
@@ -30,8 +28,12 @@ class MotionModel:
                 same size
         """
         self.odometry = odometry
-
-        return np.apply_along_axis(self.apply_odometry, 1, np.array(particles))
+        if rospy.get_param("~deterministic"):
+            return np.apply_along_axis(
+                self.apply_deterministic_odometry, 1, np.array(particles)
+            )
+        else:
+            return np.apply_along_axis(self.apply_odometry, 1, np.array(particles))
 
     def noisy_odometry(self):
         """return an odometry reading with noise applied if not deterministic, otherwise return the base odometry reading
@@ -39,16 +41,29 @@ class MotionModel:
         Returns:
             array: odometry reading
         """
-        if self.is_deterministic:
-            return self.odometry
-        else:
-            dx = self.odometry[0] + random.gauss(mu=0.0, sigma=0.04)
-            dy = self.odometry[1] + random.gauss(mu=0.0, sigma=0.04)
-            dtheta = self.odometry[2] + random.gauss(mu=0.0, sigma=0.08)
+        dx = self.odometry[0] + random.gauss(mu=0.0, sigma=0.04)
+        dy = self.odometry[1] + random.gauss(mu=0.0, sigma=0.04)
+        dtheta = self.odometry[2] + random.gauss(mu=0.0, sigma=0.08)
 
-            return [dx, dy, dtheta]
+        return [dx, dy, dtheta]
 
-    def apply_odometry(self, particle):
+    def apply_odometry(self, particle, odometry):
+        """for a single particle apply an odometry reading to it
+
+        Returns:
+            array: particle
+        """
+        theta = particle[2]
+        sin_val = np.sin(theta)
+        cos_val = np.cos(theta)
+
+        matrix = np.matrix(
+            [[cos_val, -sin_val, 0.0], [sin_val, cos_val, 0.0], [0.0, 0.0, 1.0]]
+        )
+
+        return np.dot(matrix, self.noisy_odometry()) + np.array(particle)
+
+    def apply_deterministic_odometry(self, particle, odometry):
         """for a single particle apply an odometry reading to it
 
         Returns:
@@ -58,10 +73,8 @@ class MotionModel:
         sin_val = np.sin(theta)
         cos_val = np.cos(theta)
 
-        matrix = np.matrix([[cos_val, -sin_val, 0.0],
-                            [sin_val, cos_val, 0.0],
-                            [0.0, 0.0, 1.0]])
+        matrix = np.matrix(
+            [[cos_val, -sin_val, 0.0], [sin_val, cos_val, 0.0], [0.0, 0.0, 1.0]]
+        )
 
-        result = np.dot(matrix, self.noisy_odometry()) + np.array(particle)
-
-        return result
+        return np.dot(matrix, self.odometry) + np.array(particle)

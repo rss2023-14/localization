@@ -15,17 +15,18 @@ from geometry_msgs.msg import PoseWithCovarianceStamped, TransformStamped
 
 
 class ParticleFilter:
-
     def __init__(self):
         self.prev_time = rospy.Time.now()
         self.num_particles = rospy.get_param("~num_particles")
 
         # Initial pose estimate
-        self.particles = np.array([[0.0, 0.0, 0.0]
-                                  for _ in range(self.num_particles)])
-        self.pose_sub = rospy.Subscriber("/initialpose", PoseWithCovarianceStamped,
-                                         self.pose_callback,  # TODO: Fill this in
-                                         queue_size=1)
+        self.particles = np.array([[0.0, 0.0, 0.0] for _ in range(self.num_particles)])
+        self.pose_sub = rospy.Subscriber(
+            "/initialpose",
+            PoseWithCovarianceStamped,
+            self.pose_callback,  # TODO: Fill this in
+            queue_size=1,
+        )
         # self.pose_callback(rospy.wait_for_message(
         #     "/initialpose", PoseWithCovarianceStamped))
 
@@ -36,8 +37,7 @@ class ParticleFilter:
         self.sensor_model = SensorModel()
 
         # Get parameters
-        self.particle_filter_frame = \
-            rospy.get_param("~particle_filter_frame")
+        self.particle_filter_frame = rospy.get_param("~particle_filter_frame")
         scan_topic = rospy.get_param("~scan_topic", "/scan")
         odom_topic = rospy.get_param("~odom_topic", "/odom")
 
@@ -45,12 +45,12 @@ class ParticleFilter:
         self.laser_sub = message_filters.Subscriber(scan_topic, LaserScan)
         self.odom_sub = message_filters.Subscriber(odom_topic, Odometry)
         ts = message_filters.ApproximateTimeSynchronizer(
-            [self.laser_sub, self.odom_sub], 10, 0.05)
+            [self.laser_sub, self.odom_sub], 10, 0.05
+        )
         ts.registerCallback(self.lidar_odometry_callback)
 
         # To publish average pose
-        self.odom_pub = rospy.Publisher(
-            "/pf/pose/odom", Odometry, queue_size=1)
+        self.odom_pub = rospy.Publisher("/pf/pose/odom", Odometry, queue_size=1)
 
         # Transform for map
         self.map_tf = tf2_ros.TransformBroadcaster()
@@ -70,45 +70,55 @@ class ParticleFilter:
                              (msg.twist.twist.angular.z * dt) + random.gauss(mu=0.0, sigma=0.08)]) """
         motion_model_start = rospy.Time.now()
         self.particles = self.motion_model.evaluate(
-            self.particles, [(odom_msg.twist.twist.linear.x * dt),
-                             (odom_msg.twist.twist.linear.y * dt),
-                             (odom_msg.twist.twist.angular.z * dt)])
-        
+            self.particles,
+            [
+                (odom_msg.twist.twist.linear.x * dt),
+                (odom_msg.twist.twist.linear.y * dt),
+                (odom_msg.twist.twist.angular.z * dt),
+            ],
+        )
+
         motion_model_time = (rospy.Time.now() - motion_model_start).to_nsec()
         """
         Resample and duplicate 1/f of the particles according to sensor model probabilities.
         """
         sensor_model_start = rospy.Time.now()
         f = 2
-        n = np.rint(self.num_particles/f).astype(int)
+        n = np.rint(self.num_particles / f).astype(int)
         p = self.sensor_model.evaluate(
-            self.particles, laser_msg.ranges)  # msg.ranges[20:980]
+            self.particles, laser_msg.ranges
+        )  # msg.ranges[20:980]
         # test this to see if it gets rid of weird data on rviz
         if p is None:
             return  # Map is not set!
 
         p /= np.sum(p)
-        
+
         sensor_model_time = (rospy.Time.now() - sensor_model_start).to_nsec()
 
         averaging_start = rospy.Time.now()
-        
+
         self.average_pose(p)
 
         averaging_time = (rospy.Time.now() - averaging_start).to_nsec()
-        
+
         leftover_start = rospy.Time.now()
-        
+
         indices = np.array(range(0, len(self.particles)))
-        resampled_indices = np.random.choice(
-            indices, size=n, replace=False, p=p)
+        resampled_indices = np.random.choice(indices, size=n, replace=False, p=p)
 
         resampled = self.particles[resampled_indices]
         self.particles = np.repeat(resampled, f, axis=0)
-        
+
         leftover_time = (rospy.Time.now() - leftover_start).to_nsec()
-        
-        rospy.loginfo("\nMotion model: %s\nSensor model: %s\nAveraging: %s\nLeftover: %s", motion_model_time, sensor_model_time, averaging_time, leftover_time)
+
+        rospy.loginfo(
+            "\nMotion model: %s\nSensor model: %s\nAveraging   : %s\nLeftover    : %s",
+            motion_model_time,
+            sensor_model_time,
+            averaging_time,
+            leftover_time,
+        )
 
     def average_pose(self, probabilities):
         """
@@ -144,9 +154,8 @@ class ParticleFilter:
         Deprecated.
         """
         f = 2
-        n = np.rint(self.num_particles/f).astype(int)
-        p = self.sensor_model.evaluate(
-            self.particles, msg.ranges)  # msg.ranges[20:980]
+        n = np.rint(self.num_particles / f).astype(int)
+        p = self.sensor_model.evaluate(self.particles, msg.ranges)  # msg.ranges[20:980]
         # test this to see if it gets rid of weird data on rviz
         if p is None:
             return  # Map is not set!
@@ -158,8 +167,7 @@ class ParticleFilter:
         self.average_pose(self.weights)
 
         indices = np.array(range(0, len(self.particles)))
-        resampled_indices = np.random.choice(
-            indices, size=n, replace=False, p=p)
+        resampled_indices = np.random.choice(indices, size=n, replace=False, p=p)
 
         resampled = self.particles[resampled_indices]
         self.particles = np.repeat(resampled, f, axis=0)
@@ -180,9 +188,13 @@ class ParticleFilter:
                              (msg.twist.twist.angular.z * dt) + random.gauss(mu=0.0, sigma=0.08)]) """
 
         self.particles = self.motion_model.evaluate(
-            self.particles, [(msg.twist.twist.linear.x * dt),
-                             (msg.twist.twist.linear.y * dt),
-                             (msg.twist.twist.angular.z * dt)])
+            self.particles,
+            [
+                (msg.twist.twist.linear.x * dt),
+                (msg.twist.twist.linear.y * dt),
+                (msg.twist.twist.angular.z * dt),
+            ],
+        )
 
         self.average_pose(self.weights)
         self.prev_time = time
@@ -193,9 +205,19 @@ class ParticleFilter:
         """
         pose = msg.pose.pose
         theta = tf.transformations.euler_from_quaternion(
-            [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w])[2]
-        self.particles = np.array([[pose.position.x, pose.position.y, theta]
-                                   for _ in range(self.num_particles)])
+            [
+                pose.orientation.x,
+                pose.orientation.y,
+                pose.orientation.z,
+                pose.orientation.w,
+            ]
+        )[2]
+        self.particles = np.array(
+            [
+                [pose.position.x, pose.position.y, theta]
+                for _ in range(self.num_particles)
+            ]
+        )
 
         # self.weights = [1.0 / self.num_particles for _ in range(self.num_particles)]
 
@@ -234,8 +256,7 @@ def circular_mean(angles, weights):
     """
     Calculate probability-weighted circular mean of angles.
     """
-    avg_vec = np.average([np.sin(angles), np.cos(angles)],
-                         weights=weights, axis=1)
+    avg_vec = np.average([np.sin(angles), np.cos(angles)], weights=weights, axis=1)
     return np.arctan2(avg_vec[0], avg_vec[1])
 
 
